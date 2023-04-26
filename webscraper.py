@@ -14,7 +14,7 @@ EU_CODES = ['AL', 'AD', 'AT', 'BY', 'BE', 'BA', 'BG', 'HR',
             'ES', 'SE', 'CH', 'UA', 'GB', 'VA']
 API_ENDPOINT = 'https://maps.googleapis.com/maps/api/streetview'
 # change this to your API key
-API_KEY = "AIzaSyCScWJEy0uXU8KCVOzJ2yW7y3pkz1ZnYF8"
+API_KEY = "YOURKEY"
 # number of images to be obtained
 NUM_IMAGES = 10000
 
