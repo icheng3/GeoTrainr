@@ -11,7 +11,7 @@ from timm.utils import accuracy
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from libs.ConvNeXt import utils, build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
-from libs.ConvNeXt.models.convnext import ConvNeXtFeature
+from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
 
 class Trainer(object):
     def __init__(self, args):
@@ -42,7 +42,7 @@ class Trainer(object):
 
         optimizer.zero_grad()
 
-        for data_iter_step, (samples, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+        for data_iter_step, (samples, _, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
             step = data_iter_step // update_freq
             if step >= num_training_steps_per_epoch:
                 continue
@@ -224,7 +224,8 @@ class Trainer(object):
     def build_model(self):
         args = self.args
         ### build model and load pretrained params
-        self.model = ConvNeXtFeature(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024], 
+        self.model = ConvNeXt(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024],
+                                num_classes=args.nb_classes,
                                 drop_path_rate=args.drop_path, 
                                 layer_scale_init_value=args.layer_scale_init_value, 
                                 head_init_scale=args.head_init_scale)
@@ -234,14 +235,13 @@ class Trainer(object):
             state_dict = self.model.state_dict()
             for k in ['head.weight', 'head.bias']:
                 if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                    print(f"Removing key {k} from pretrained checkpoint")
+                    # print(f"Removing key {k} from pretrained checkpoint")
                     del checkpoint_model[k]
             utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
 
         self.model.to(self.device)
+        self.args = args
 
-
-        
 
 
     def load_data(self):
@@ -279,3 +279,4 @@ class Trainer(object):
                 pin_memory=args.pin_mem,
                 drop_last=False
             )
+        self.args = args
