@@ -12,6 +12,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from libs.ConvNeXt import utils, build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
+from geo_data import build_geo_dataset
 
 class Trainer(object):
     def __init__(self, args):
@@ -190,31 +191,26 @@ class Trainer(object):
                         args=args, model=self.model, optimizer=optimizer,
                         epoch=epoch, model_ema=None)
                     
-            if not args.disable_eval:
-                test_stats = self.evaluate(self.data_loader_val)
-                print(f"Accuracy of the model on the {len(self.dataset_val)} test images: {test_stats['acc1']:.1f}%")
-                if max_accuracy < test_stats["acc1"]:
-                    max_accuracy = test_stats["acc1"]
-                    if args.output_dir and args.save_ckpt:
-                        utils.save_model(
-                            args=args, model=self.model, optimizer=optimizer, epoch="best")
-                print(f'Max accuracy: {max_accuracy:.2f}%')
+            ## start eval
+            test_stats = self.evaluate(self.data_loader_val)
+            print(f"Accuracy of the model on the {len(self.dataset_val)} test images: {test_stats['acc1']:.1f}%")
+            if max_accuracy < test_stats["acc1"]:
+                max_accuracy = test_stats["acc1"]
+                if args.output_dir and args.save_ckpt:
+                    utils.save_model(
+                        args=args, model=self.model, optimizer=optimizer, epoch="best")
+            print(f'Max accuracy: {max_accuracy:.2f}%')
 
-                if self.log_writer is not None:
-                    self.log_writer.update(test_acc1=test_stats['acc1'], head="perf", step=epoch)
-                    self.log_writer.update(test_acc5=test_stats['acc5'], head="perf", step=epoch)
-                    self.log_writer.update(test_loss=test_stats['loss'], head="perf", step=epoch)
+            if self.log_writer is not None:
+                self.log_writer.update(test_acc1=test_stats['acc1'], head="perf", step=epoch)
+                self.log_writer.update(test_acc5=test_stats['acc5'], head="perf", step=epoch)
+                self.log_writer.update(test_loss=test_stats['loss'], head="perf", step=epoch)
 
-                log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                             **{f'test_{k}': v for k, v in test_stats.items()},
-                             'epoch': epoch,
-                             'n_parameters': n_parameters}
+            log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
+                         **{f'test_{k}': v for k, v in test_stats.items()},
+                         'epoch': epoch,
+                         'n_parameters': n_parameters}
 
-            else:
-                print(f'Trainset acc1: {train_stats["acc1"]}  acc5: {train_stats["acc5"]}')
-                log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                             'epoch': epoch,
-                             'n_parameters': n_parameters}
 
             if args.output_dir and utils.is_main_process():
                 if self.log_writer is not None:
@@ -260,12 +256,7 @@ class Trainer(object):
         args = self.args
 
         ### build dataset
-        self.dataset_train, args.nb_classes = build_dataset(is_train=True, args=args)
-        if args.disable_eval:
-            args.dist_eval = False
-            self.dataset_val = None
-        else:
-            self.dataset_val, _ = build_dataset(is_train=False, args=args)
+        self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
 
         ### build dataloaders
         sampler_train = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
@@ -282,13 +273,12 @@ class Trainer(object):
             os.makedirs(args.log_dir, exist_ok=True)
             self.log_writer = utils.TensorboardLogger(log_dir=args.log_dir)
 
-        if not args.disable_eval:
-            sampler_val = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
-            self.data_loader_val = torch.utils.data.DataLoader(
-                self.dataset_val if self.dataset_val is not None else self.dataset_train, sampler=sampler_val,
-                batch_size=int(1.5 * args.batch_size),
-                num_workers=args.num_workers,
-                pin_memory=args.pin_mem,
-                drop_last=False
-            )
+        sampler_val = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
+        self.data_loader_val = torch.utils.data.DataLoader(
+            self.dataset_val, sampler=sampler_val,
+            batch_size=int(1.5 * args.batch_size),
+            num_workers=args.num_workers,
+            pin_memory=args.pin_mem,
+            drop_last=False
+        )
         self.args = args

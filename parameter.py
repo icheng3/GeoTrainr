@@ -37,7 +37,7 @@ def get_args_parser():
     # Dataset parameters
     parser.add_argument('--data_path', default='./data', type=str,
                         help='dataset path')
-    parser.add_argument('--eval_data_path', default='./data', type=str,
+    parser.add_argument('--eval_data_path', default="", type=str,
                         help='dataset path for evaluation')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
