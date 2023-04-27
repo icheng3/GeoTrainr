@@ -20,7 +20,7 @@ def get_args_parser():
     parser.add_argument('--batch_size', default=4, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=300, type=int)
-    parser.add_argument('--experiment', default="country", type=str, options=["latlng", "country"])
+    parser.add_argument('--experiment', default="country", type=str, choices=["latlng", "country"])
     parser.add_argument('--update_freq', default=1, type=int,
                         help='gradient accumulation steps')
 
@@ -105,7 +105,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='',
+    parser.add_argument('--finetune', default='convnext_base_22k_224.pth',
                         help='finetune from checkpoint')
     parser.add_argument('--head_init_scale', default=1.0, type=float,
                         help='classifier head initial scale, typically adjusted in fine-tuning')
@@ -114,18 +114,18 @@ def get_args_parser():
     parser.add_argument('--model_prefix', default='', type=str)
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--data_path', default='./data', type=str,
                         help='dataset path')
-    parser.add_argument('--eval_data_path', default=None, type=str,
+    parser.add_argument('--eval_data_path', default='./data', type=str,
                         help='dataset path for evaluation')
     parser.add_argument('--nb_classes', default=1000, type=int,
                         help='number of the classification types')
     parser.add_argument('--imagenet_default_mean_and_std', type=str2bool, default=True)
-    parser.add_argument('--data_set', default='IMNET', choices=['CIFAR', 'IMNET', 'image_folder'],
+    parser.add_argument('--data_set', default='GeoGuessr', choices=['CIFAR', 'IMNET', 'image_folder', 'GeoGuessr'],
                         type=str, help='ImageNet dataset path')
-    parser.add_argument('--output_dir', default='./logs',
+    parser.add_argument('--output_dir', default='./logs/Debug_ConvNeXt',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default="./logs",
+    parser.add_argument('--log_dir', default="./logs/Debug_ConvNeXt",
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
@@ -144,7 +144,7 @@ def get_args_parser():
                         help='Perform evaluation only')
     parser.add_argument('--dist_eval', type=str2bool, default=True,
                         help='Enabling distributed evaluation')
-    parser.add_argument('--disable_eval', type=str2bool, default=False,
+    parser.add_argument('--disable_eval', type=str2bool, default=True,
                         help='Disabling evaluation during training')
     parser.add_argument('--num_workers', default=10, type=int)
     parser.add_argument('--pin_mem', type=str2bool, default=True,

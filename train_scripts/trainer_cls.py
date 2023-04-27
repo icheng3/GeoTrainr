@@ -10,6 +10,7 @@ from timm.utils import accuracy
 
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from libs.ConvNeXt import utils, build_dataset, create_optimizer
+import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature
 
 class Trainer(object):
@@ -26,6 +27,7 @@ class Trainer(object):
         self.args = args
 
         self.load_data()
+        self.build_model()
 
 
     def train_epoch(self, epoch, criterion, optimizer, data_loader, 
@@ -171,7 +173,7 @@ class Trainer(object):
             if self.log_writer is not None:
                 self.log_writer.set_step(epoch * num_training_steps_per_epoch * args.update_freq)
 
-            train_stats = self.train_epoch(self, epoch, criterion, optimizer, self.data_loader_train, 
+            train_stats = self.train_epoch(epoch, criterion, optimizer, self.data_loader_train, 
                         epoch * num_training_steps_per_epoch, args.update_freq, num_training_steps_per_epoch, 
                         lr_schedule_values)
             
