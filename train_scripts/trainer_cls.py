@@ -70,6 +70,13 @@ class Trainer(object):
             torch.cuda.synchronize()
             class_acc = (output.max(-1)[-1] == targets).float().mean()
 
+            acc1, acc5 = accuracy(output, targets, topk=(1, 5))
+
+            batch_size = samples.shape[0]
+            # metric_logger.update(loss=loss.item())
+            metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
+            metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
+
             metric_logger.update(loss=loss_value)
             metric_logger.update(class_acc=class_acc)
             min_lr = 10.
@@ -204,7 +211,7 @@ class Trainer(object):
                              'n_parameters': n_parameters}
 
             else:
-                print(f'Train acc: {train_stats["class_acc"]}')
+                print(f'Trainset acc1: {train_stats["acc1"]}  acc5: {train_stats["acc5"]}')
                 log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                              'epoch': epoch,
                              'n_parameters': n_parameters}
@@ -232,14 +239,17 @@ class Trainer(object):
                                 head_init_scale=args.head_init_scale)
 
         if args.finetune: ### should always be true
-            checkpoint_model = torch.load(args.finetune, map_location='cpu')
+            checkpoint_model = torch.load(args.finetune, map_location='cpu')['model']
             state_dict = self.model.state_dict()
+            # print(missing_keys)
+
             for k in ['head.weight', 'head.bias']:
                 if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
                     # print(f"Removing key {k} from pretrained checkpoint")
                     del checkpoint_model[k]
             # utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
-            self.model.load_state_dict(checkpoint_model, strict=False)
+            missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=False)
+            print("missed_keys:", missing_keys)
 
         self.model.to(self.device)
         self.args = args
