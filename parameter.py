@@ -17,7 +17,7 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=4, type=int,
+    parser.add_argument('--batch_size', default=16, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--experiment', default="country", type=str, choices=["latlng", "country"])
@@ -25,7 +25,7 @@ def get_args_parser():
                         help='gradient accumulation steps')
 
     # Model parameters
-    parser.add_argument('--model', default='convnext_tiny', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='convnext_base', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--drop_path', type=float, default=0, metavar='PCT',
                         help='Drop path rate (default: 0.0)')
@@ -33,6 +33,43 @@ def get_args_parser():
                         help='image input size')
     parser.add_argument('--layer_scale_init_value', default=1e-6, type=float,
                         help="Layer scale initial values")
+
+    # Dataset parameters
+    parser.add_argument('--data_path', default='./data', type=str,
+                        help='dataset path')
+    parser.add_argument('--eval_data_path', default='./data', type=str,
+                        help='dataset path for evaluation')
+    parser.add_argument('--nb_classes', default=1000, type=int,
+                        help='number of the classification types')
+    parser.add_argument('--imagenet_default_mean_and_std', type=str2bool, default=True)
+    parser.add_argument('--data_set', default='GeoGuessr', choices=['CIFAR', 'IMNET', 'image_folder', 'GeoGuessr'],
+                        type=str, help='ImageNet dataset path')
+    parser.add_argument('--output_dir', default='./logs/Debug_ConvNeXt',
+                        help='path where to save, empty for no saving')
+    parser.add_argument('--log_dir', default="./logs/Debug_ConvNeXt",
+                        help='path where to tensorboard log')
+    parser.add_argument('--device', default='cuda',
+                        help='device to use for training / testing')
+    parser.add_argument('--seed', default=0, type=int)
+
+    parser.add_argument('--resume', default='',
+                        help='resume from checkpoint')
+    parser.add_argument('--auto_resume', type=str2bool, default=False)
+    parser.add_argument('--save_ckpt', type=str2bool, default=True)
+    parser.add_argument('--save_ckpt_freq', default=1, type=int)
+    parser.add_argument('--save_ckpt_num', default=3, type=int)
+
+    parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
+                        help='start epoch')
+    parser.add_argument('--eval', type=str2bool, default=False,
+                        help='Perform evaluation only')
+    parser.add_argument('--dist_eval', type=str2bool, default=True,
+                        help='Enabling distributed evaluation')
+    parser.add_argument('--disable_eval', type=str2bool, default=True,
+                        help='Disabling evaluation during training')
+    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--pin_mem', type=str2bool, default=True,
+                        help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
 
     # EMA related parameters
     parser.add_argument('--model_ema', type=str2bool, default=False)
@@ -112,43 +149,6 @@ def get_args_parser():
     parser.add_argument('--model_key', default='model|module', type=str,
                         help='which key to load from saved state dict, usually model or model_ema')
     parser.add_argument('--model_prefix', default='', type=str)
-
-    # Dataset parameters
-    parser.add_argument('--data_path', default='./data', type=str,
-                        help='dataset path')
-    parser.add_argument('--eval_data_path', default='./data', type=str,
-                        help='dataset path for evaluation')
-    parser.add_argument('--nb_classes', default=1000, type=int,
-                        help='number of the classification types')
-    parser.add_argument('--imagenet_default_mean_and_std', type=str2bool, default=True)
-    parser.add_argument('--data_set', default='GeoGuessr', choices=['CIFAR', 'IMNET', 'image_folder', 'GeoGuessr'],
-                        type=str, help='ImageNet dataset path')
-    parser.add_argument('--output_dir', default='./logs/Debug_ConvNeXt',
-                        help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default="./logs/Debug_ConvNeXt",
-                        help='path where to tensorboard log')
-    parser.add_argument('--device', default='cuda',
-                        help='device to use for training / testing')
-    parser.add_argument('--seed', default=0, type=int)
-
-    parser.add_argument('--resume', default='',
-                        help='resume from checkpoint')
-    parser.add_argument('--auto_resume', type=str2bool, default=False)
-    parser.add_argument('--save_ckpt', type=str2bool, default=True)
-    parser.add_argument('--save_ckpt_freq', default=1, type=int)
-    parser.add_argument('--save_ckpt_num', default=3, type=int)
-
-    parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
-                        help='start epoch')
-    parser.add_argument('--eval', type=str2bool, default=False,
-                        help='Perform evaluation only')
-    parser.add_argument('--dist_eval', type=str2bool, default=True,
-                        help='Enabling distributed evaluation')
-    parser.add_argument('--disable_eval', type=str2bool, default=True,
-                        help='Disabling evaluation during training')
-    parser.add_argument('--num_workers', default=10, type=int)
-    parser.add_argument('--pin_mem', type=str2bool, default=True,
-                        help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
 
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,

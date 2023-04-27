@@ -23,8 +23,8 @@
 #
 
 nvidia-smi
-python3 train_geo.py --model convnext_base --disable_eval True\
-    --finetune ../convnext_base_22k_224.pth --log_dir ./logs \
-    --input_size 224 --drop_path 0.2 --batch_size 16\
-    --data_path /home/zliu177/Desktop/CS1430-final/compressed_dataset/ --data_set image_folder --nb_classes 124
+python3 main.py --model convnext_base --disable_eval True \
+    --finetune ./convnext_base_22k_224.pth --log_dir ./logs/ConvNextB_cls \
+    --input_size 224 --drop_path 0.1 --batch_size 16 \
+    --data_path ./data
     
