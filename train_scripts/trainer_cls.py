@@ -273,7 +273,7 @@ class Trainer(object):
             os.makedirs(args.log_dir, exist_ok=True)
             self.log_writer = utils.TensorboardLogger(log_dir=args.log_dir)
 
-        sampler_val = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
+        sampler_val = torch.utils.data.RandomSampler(self.dataset_val, replacement=False)
         self.data_loader_val = torch.utils.data.DataLoader(
             self.dataset_val, sampler=sampler_val,
             batch_size=int(1.5 * args.batch_size),
