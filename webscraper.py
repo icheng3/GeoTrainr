@@ -16,7 +16,8 @@ API_ENDPOINT = 'https://maps.googleapis.com/maps/api/streetview'
 # change this to your API key
 API_KEY = "YOURKEY"
 # number of images to be obtained
-NUM_IMAGES = 10000
+NUM_IMAGES = 50000
+NUM_QUERY = 28000 - 7802 - 5663
 
 # load data
 loc_data = pd.read_csv('country_data.csv')
@@ -27,11 +28,15 @@ random_locs = np.random.choice(num_rows, num_rows, replace=False)
 os.environ['PATH'] += r"/Documents/CS1430_Projects/chromedriver_mac_arm64/chromedriver"
 driver = webdriver.Chrome()
 
+
+
 hits = 0
 seen = 0
 total = 0
 
 for i in random_locs:
+    if total==NUM_QUERY:
+        break
     if hits == NUM_IMAGES:
         break
 
