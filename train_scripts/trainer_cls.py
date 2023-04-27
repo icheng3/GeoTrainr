@@ -237,7 +237,8 @@ class Trainer(object):
                 if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
                     # print(f"Removing key {k} from pretrained checkpoint")
                     del checkpoint_model[k]
-            utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
+            # utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
+            self.model.load_state_dict(checkpoint_model, strict=False)
 
         self.model.to(self.device)
         self.args = args
