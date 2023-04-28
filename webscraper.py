@@ -14,10 +14,10 @@ EU_CODES = ['AL', 'AD', 'AT', 'BY', 'BE', 'BA', 'BG', 'HR',
             'ES', 'SE', 'CH', 'UA', 'GB', 'VA']
 API_ENDPOINT = 'https://maps.googleapis.com/maps/api/streetview'
 # change this to your API key
-API_KEY = "AIzaSyCx1LJ5ow1Cvakq9Xcbuz3aI-9bpYqgvPE"
+API_KEY = "YOURKEY"
 # number of images to be obtained
 NUM_IMAGES = 50000
-NUM_QUERY = 28000 - 7802 - 5663
+NUM_QUERY = 40000
 
 # load data
 loc_data = pd.read_csv('country_data.csv')
@@ -56,10 +56,12 @@ for i in random_locs:
     except:
         api_request = f'{API_ENDPOINT}?size={IMG_SIZE}x{IMG_SIZE}&location={loc}&fov=80&heading=70&pitch=0&key={API_KEY}'
         driver.get(api_request)
-        image_url = driver.find_element(By.TAG_NAME, 'img').get_attribute('src')
-        urllib.request.urlretrieve(image_url, f'data/{country_code}_{loc}.png')
-        hits += 1
-    
+        try:
+            image_url = driver.find_element(By.TAG_NAME, 'img').get_attribute('src')
+            urllib.request.urlretrieve(image_url, f'data/{country_code}_{loc}.png')
+            hits += 1
+        except:
+            pass
     total += 1
 
 print("seen:", seen)
