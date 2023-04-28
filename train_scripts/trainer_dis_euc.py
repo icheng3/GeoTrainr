@@ -43,7 +43,7 @@ class Trainer(object):
 
         optimizer.zero_grad()
 
-        for data_iter_step, (samples, _, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+        for data_iter_step, (samples, coords, _) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
             step = data_iter_step // update_freq
             if step >= num_training_steps_per_epoch:
                 continue
@@ -54,11 +54,20 @@ class Trainer(object):
                     if lr_schedule_values is not None:
                         param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
 
+            bs = samples.shape[0]
+            assert bs%2==0, "batch size must be even number for eus_dis learning"
             samples = samples.to(self.device, non_blocking=True)
-            targets = targets.to(self.device, non_blocking=True)
+            coords = coords.to(self.device, non_blocking=True)
 
-            output = self.model(samples)
-            loss = criterion(output, targets)
+            # compute output
+            features = self.model(samples)
+            f1, f2 = features[:bs//2], features[bs//2:]
+            c1, c2 = coords[:bs//2], coords[bs//2:]
+            feature_distance = torch.pairwise_distance(f1, f2, p=2, keepdim=True)
+            geo_distance = torch.pairwise_distance(c1, c2, p=2, keepdim=True)
+
+            loss = criterion(feature_distance, geo_distance)
+            err = (geo_distance - feature_distance).abs().mean()
 
             loss_value = loss.item()
 
@@ -69,17 +78,9 @@ class Trainer(object):
                 optimizer.zero_grad()
 
             torch.cuda.synchronize()
-            class_acc = (output.max(-1)[-1] == targets).float().mean()
-
-            acc1, acc5 = accuracy(output, targets, topk=(1, 5))
-
-            batch_size = samples.shape[0]
-            # metric_logger.update(loss=loss.item())
-            metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
-            metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
 
             metric_logger.update(loss=loss_value)
-            metric_logger.update(class_acc=class_acc)
+            metric_logger.meters['err'].update(err.item(), n=bs)
             min_lr = 10.
             max_lr = 0.
             for group in optimizer.param_groups:
@@ -96,7 +97,7 @@ class Trainer(object):
 
             if self.log_writer is not None:
                 self.log_writer.update(loss=loss_value, head="loss")
-                self.log_writer.update(class_acc=class_acc, head="loss")
+                self.log_writer.update(err=err, head="error")
                 self.log_writer.update(lr=max_lr, head="opt")
                 self.log_writer.update(min_lr=min_lr, head="opt")
                 self.log_writer.update(weight_decay=weight_decay_value, head="opt")
@@ -118,25 +119,29 @@ class Trainer(object):
         self.model.eval()
         for batch in metric_logger.log_every(data_loader, 10, header):
             images = batch[0]
-            target = batch[-1]
+            coords = batch[1]
+            bs = images.shape[0]
+            assert bs%2==0, "batch size must be even number for eus_dis learning"
 
             images = images.to(self.device, non_blocking=True)
-            target = target.to(self.device, non_blocking=True)
+            coords = coords.to(self.device, non_blocking=True)
 
             # compute output
-            output = self.model(images)
-            loss = criterion(output, target)
+            features = self.model(images)
+            f1, f2 = features[:bs//2], features[bs//2:]
+            c1, c2 = coords[:bs//2], coords[bs//2:]
+            feature_distance = torch.pairwise_distance(f1, f2, p=2, keepdim=True)
+            geo_distance = torch.pairwise_distance(c1, c2, p=2, keepdim=True)
 
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            loss = criterion(feature_distance, geo_distance)
+            err = (geo_distance - feature_distance).abs().mean()
 
-            batch_size = images.shape[0]
             metric_logger.update(loss=loss.item())
-            metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
-            metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
+            metric_logger.meters['err'].update(err.item(), n=bs)
         # gather the stats from all processes
         metric_logger.synchronize_between_processes()
-        print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
-              .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
+        print('* Avg Error {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
+              .format(err=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
 
         return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
@@ -162,16 +167,14 @@ class Trainer(object):
             warmup_epochs=args.warmup_epochs, warmup_steps=args.warmup_steps,
         )
 
-        mixup_fn = None
-        if mixup_fn is not None:
-            # smoothing is handled with mixup label transform
-            criterion = SoftTargetCrossEntropy()
-        elif args.smoothing > 0.:
-            criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
-        else:
-            criterion = torch.nn.CrossEntropyLoss()
+        if args.dis_criterion.lower()=="mse":
+            criterion = torch.nn.MSELoss()
+        elif args.dis_criterion.lower()=="l1":
+            criterion = torch.nn.L1Loss()
+        elif args.dis_criterion.lower()=="smoothl1":
+            criterion = torch.nn.SmoothL1Loss()
 
-        max_accuracy = 0.0
+        min_error = 0.0
 
         print("Start training for %d epochs" % args.epochs)
         start_time = time.time()
@@ -193,17 +196,16 @@ class Trainer(object):
                     
             ## start eval
             test_stats = self.evaluate(self.data_loader_val)
-            print(f"Accuracy of the model on the {len(self.dataset_val)} test images: {test_stats['acc1']:.1f}%")
-            if max_accuracy < test_stats["acc1"]:
-                max_accuracy = test_stats["acc1"]
+            print(f"Error of the model on the {len(self.dataset_val)} test images: {test_stats['err']:.1f}%")
+            if min_error > test_stats["err"]:
+                min_error = test_stats["err"]
                 if args.output_dir and args.save_ckpt:
                     utils.save_model(
                         args=args, model=self.model, optimizer=optimizer, epoch="best")
-            print(f'Max accuracy: {max_accuracy:.2f}%')
+            print(f'Min error: {min_error:.2f}%')
 
             if self.log_writer is not None:
-                self.log_writer.update(test_acc1=test_stats['acc1'], head="perf", step=epoch)
-                self.log_writer.update(test_acc5=test_stats['acc5'], head="perf", step=epoch)
+                self.log_writer.update(err=test_stats['err'], head="perf", step=epoch)
                 self.log_writer.update(test_loss=test_stats['loss'], head="perf", step=epoch)
 
             log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
@@ -228,7 +230,7 @@ class Trainer(object):
         args = self.args
         ### build model and load pretrained params
         if args.model == "convnext_base":
-            self.model = ConvNeXt(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024],
+            self.model = ConvNeXtFeature(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024],
                                 num_classes=args.nb_classes,
                                 drop_path_rate=args.drop_path, 
                                 layer_scale_init_value=args.layer_scale_init_value, 
@@ -249,7 +251,6 @@ class Trainer(object):
 
         self.model.to(self.device)
         self.args = args
-
 
 
     def load_data(self):

@@ -17,10 +17,10 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=16, type=int,
+    parser.add_argument('--batch_size', default=4, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=300, type=int)
-    parser.add_argument('--experiment', default="country", type=str, choices=["latlng", "country"])
+    parser.add_argument('--experiment', default="euclidean", type=str, choices=["latlng", "country", "euclidean"])
     parser.add_argument('--update_freq', default=1, type=int,
                         help='gradient accumulation steps')
 
@@ -33,7 +33,9 @@ def get_args_parser():
                         help='image input size')
     parser.add_argument('--layer_scale_init_value', default=1e-6, type=float,
                         help="Layer scale initial values")
-
+    parser.add_argument('--dis_criterion', type=str, default="L1",
+                        help='criterion for distance prediction')
+    
     # Dataset parameters
     parser.add_argument('--data_path', default='./data', type=str,
                         help='dataset path')
@@ -94,7 +96,7 @@ def get_args_parser():
         weight decay. We use a cosine schedule for WD and using a larger decay by
         the end of training improves performance for ViTs.""")
 
-    parser.add_argument('--lr', type=float, default=4e-3, metavar='LR',
+    parser.add_argument('--lr', type=float, default=4e-5, metavar='LR',
                         help='learning rate (default: 4e-3), with total batch size 4096')
     parser.add_argument('--layer_decay', type=float, default=1.0)
     parser.add_argument('--min_lr', type=float, default=1e-6, metavar='LR',

@@ -12,3 +12,9 @@ if __name__ == '__main__':
         from train_scripts.trainer_cls import Trainer
         trainer = Trainer(args)
         trainer.train()
+
+    
+    if args.experiment == "euclidean":
+        from train_scripts.trainer_dis_euc import Trainer
+        trainer = Trainer(args)
+        trainer.train()
