@@ -13,6 +13,7 @@ from libs.ConvNeXt import utils, build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
 from geo_data import build_geo_dataset
+from models.Distancer import GeoDiscriminator
 
 class Trainer(object):
     def __init__(self, args):
@@ -60,22 +61,28 @@ class Trainer(object):
             coords = coords.to(self.device, non_blocking=True)
 
             # compute output
-            features = self.model(samples)
-            f1, f2 = features[:bs//2], features[bs//2:]
-            c1, c2 = coords[:bs//2], coords[bs//2:]
-            feature_distance = torch.pairwise_distance(f1, f2, p=2, keepdim=True)
-            geo_distance = torch.pairwise_distance(c1, c2, p=2, keepdim=True)
+            with torch.no_grad():
+                features = self.backbone(samples)
 
-            loss = criterion(feature_distance, geo_distance)
-            err = (geo_distance - feature_distance).abs().mean()
+            err, loss_value = 0,0
+            for _ in range(update_freq):
+                shuffle_index = torch.randperm(features.size()[0])
+                features_2 = features.copy()[shuffle_index]
+                coords_2 = coords.copy()[shuffle_index]
 
-            loss_value = loss.item()
+                feature_distance = self.model(torch.concatenate([features, features_2], dim=-1))
+                geo_distance = torch.pairwise_distance(c1, c2, p=2, keepdim=True)
 
-            loss /= update_freq
-            loss.backward()
-            if (data_iter_step + 1) % update_freq == 0:
-                optimizer.step()
-                optimizer.zero_grad()
+                loss = criterion(feature_distance, geo_distance)
+            
+                err += (geo_distance - feature_distance).abs().mean()/update_freq
+                loss_value += loss.item()
+
+                loss /= update_freq
+                loss.backward()
+                
+            optimizer.step()
+            optimizer.zero_grad()
 
             torch.cuda.synchronize()
 
@@ -237,7 +244,7 @@ class Trainer(object):
         args = self.args
         ### build model and load pretrained params
         if args.model == "convnext_base":
-            self.model = ConvNeXtFeature(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024],
+            self.backbone = ConvNeXtFeature(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024],
                                 num_classes=args.nb_classes,
                                 drop_path_rate=args.drop_path, 
                                 layer_scale_init_value=args.layer_scale_init_value, 
@@ -245,7 +252,7 @@ class Trainer(object):
 
         if args.finetune: ### should always be true
             checkpoint_model = torch.load(args.finetune, map_location='cpu')['model']
-            state_dict = self.model.state_dict()
+            state_dict = self.backbone.state_dict()
             # print(missing_keys)
 
             for k in ['head.weight', 'head.bias']:
@@ -253,10 +260,15 @@ class Trainer(object):
                     # print(f"Removing key {k} from pretrained checkpoint")
                     del checkpoint_model[k]
             # utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
-            missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=False)
+            missing_keys, _ = self.backbone.load_state_dict(checkpoint_model, strict=False)
             print("missed_keys:", missing_keys)
 
-        self.model.to(self.device)
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+
+        self.backbone.to(self.device)
+        self.backbone.eval()
+        self.model = GeoDiscriminator(1024)
         self.args = args
 
 
@@ -290,3 +302,15 @@ class Trainer(object):
             drop_last=False
         )
         self.args = args
+
+
+        train_iter = iter(self.data_loader_train) 
+        self.anchor_images = []
+        self.anchor_coords = []
+        for _ in range(2):
+            (imgs, coords, _) = next(train_iter)
+            self.anchor_images.append(imgs)
+            self.anchor_coords.append(coords)
+
+        self.anchor_images = torch.concat(anchor_images, 0)
+        self.anchor_coords = torch.concat(anchor_coords, 0)

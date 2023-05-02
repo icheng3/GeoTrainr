@@ -7,9 +7,8 @@ from timm.models.registry import register_model
 
 
 class GeoDiscriminator(nn.Module):
-    def __init__(self, backbone, dim):
+    def __init__(self, dim):
         super().__init__()
-        self.backbone = backbone
         self.head = nn.Sequential([
             nn.Linear(2 * dim, dim),
             nn.GELU(),
@@ -18,9 +17,6 @@ class GeoDiscriminator(nn.Module):
             nn.Linear(dim, 1)
         ])
 
-    def forward(self, x1, x2):
-        f1 = self.backbone(x1)
-        f2 = self.backbone(x2)
-        f = torch.concat([f1, f2], dim=-1)
-        y = self.head(f)
+    def forward(self, x):
+        y = self.head(x)
         return y

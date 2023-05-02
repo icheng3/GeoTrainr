@@ -23,8 +23,9 @@
 #
 
 nvidia-smi
-python3 main.py --model convnext_base \
-    --finetune ./convnext_base_22k_224.pth --log_dir ./logs/ConvNextB_cls_lr4-5_eval \
-    --input_size 224 --drop_path 0.1 --batch_size 16 \
+python3 main.py --model convnext_base --experiment euclidean \
+    --finetune ./convnext_base_22k_224.pth \
+    --log_dir ./logs/ConvNextB_dis_euc --output_dir ./logs/ConvNextB_dis_euc \
+    --input_size 224 --drop_path 0.1 --batch_size 24 \
     --data_path ./data --lr 4e-5
     
