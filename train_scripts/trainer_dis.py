@@ -70,8 +70,8 @@ class Trainer(object):
                 features_2 = features.copy()[shuffle_index]
                 coords_2 = coords.copy()[shuffle_index]
 
-                feature_distance = self.model(torch.concatenate([features, features_2], dim=-1))
-                geo_distance = torch.pairwise_distance(c1, c2, p=2, keepdim=True)
+                feature_distance = self.model(torch.concat([features, features_2], dim=-1))
+                geo_distance = torch.pairwise_distance(coords, coords_2, p=2, keepdim=True)
 
                 loss = criterion(feature_distance, geo_distance)
             
@@ -125,7 +125,6 @@ class Trainer(object):
         elif args.dis_criterion.lower()=="smoothl1":
             criterion = torch.nn.SmoothL1Loss()
 
-
         metric_logger = utils.MetricLogger(delimiter="  ")
         header = 'Test:'
 
@@ -139,13 +138,18 @@ class Trainer(object):
 
             images = images.to(self.device, non_blocking=True)
             coords = coords.to(self.device, non_blocking=True)
+            coords_ref = self.anchor_coords.to(self.device, non_blocking=True)
 
             # compute output
-            features = self.model(images)
-            f1, f2 = features[:bs//2], features[bs//2:]
-            c1, c2 = coords[:bs//2], coords[bs//2:]
-            feature_distance = torch.pairwise_distance(f1, f2, p=2, keepdim=True)
-            geo_distance = torch.pairwise_distance(c1, c2, p=2, keepdim=True)
+            features_ref = self.backbone(self.anchor_images.to(self.device, non_blocking=True))
+            features = self.backbone(images)
+
+            if bs<features_ref.shape[0]:
+                features_ref = features_ref[:bs]
+                coords_ref = coords_ref[:bs]
+
+            feature_distance = self.model(torch.concat([features, features_ref], dim=-1))
+            geo_distance = torch.pairwise_distance(coords, coords_ref, p=2, keepdim=True)
 
             loss = criterion(feature_distance, geo_distance)
             err = (geo_distance - feature_distance).abs().mean()
@@ -277,7 +281,9 @@ class Trainer(object):
 
         ### build dataset
         self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
-
+        self.dataset_train.dataset = self.dataset_train.dataset[:50]
+        self.dataset_val.dataset = self.dataset_val.dataset[:50]
+        
         ### build dataloaders
         sampler_train = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
         print("Sampler_train = %s" % str(sampler_train))
@@ -296,7 +302,7 @@ class Trainer(object):
         sampler_val = torch.utils.data.RandomSampler(self.dataset_val, replacement=False)
         self.data_loader_val = torch.utils.data.DataLoader(
             self.dataset_val, sampler=sampler_val,
-            batch_size=int(1.5 * args.batch_size),
+            batch_size=int(2 * args.batch_size),
             num_workers=args.num_workers,
             pin_memory=args.pin_mem,
             drop_last=False
@@ -312,5 +318,5 @@ class Trainer(object):
             self.anchor_images.append(imgs)
             self.anchor_coords.append(coords)
 
-        self.anchor_images = torch.concat(anchor_images, 0)
-        self.anchor_coords = torch.concat(anchor_coords, 0)
+        self.anchor_images = torch.concat(self.anchor_images, 0)
+        self.anchor_coords = torch.concat(self.anchor_coords, 0)
