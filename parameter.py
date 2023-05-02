@@ -20,8 +20,8 @@ def get_args_parser():
     parser.add_argument('--batch_size', default=4, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=300, type=int)
-    parser.add_argument('--experiment', default="euclidean", type=str, choices=["latlng", "country", "euclidean"])
-    parser.add_argument('--update_freq', default=1, type=int,
+    parser.add_argument('--experiment', default="dis", type=str, choices=["latlng", "country", "euclidean", "dis"])
+    parser.add_argument('--update_freq', default=4, type=int,
                         help='gradient accumulation steps')
 
     # Model parameters

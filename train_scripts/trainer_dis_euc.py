@@ -110,7 +110,14 @@ class Trainer(object):
     
     @torch.no_grad()
     def evaluate(self, data_loader):
-        criterion = torch.nn.CrossEntropyLoss()
+        args = self.args
+        if args.dis_criterion.lower()=="mse":
+            criterion = torch.nn.MSELoss()
+        elif args.dis_criterion.lower()=="l1":
+            criterion = torch.nn.L1Loss()
+        elif args.dis_criterion.lower()=="smoothl1":
+            criterion = torch.nn.SmoothL1Loss()
+
 
         metric_logger = utils.MetricLogger(delimiter="  ")
         header = 'Test:'
@@ -140,8 +147,8 @@ class Trainer(object):
             metric_logger.meters['err'].update(err.item(), n=bs)
         # gather the stats from all processes
         metric_logger.synchronize_between_processes()
-        print('* Avg Error {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
-              .format(err=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
+        print('* Avg Error {err.global_avg:.3f} loss {losses.global_avg:.3f}'
+              .format(err=metric_logger.err, losses=metric_logger.loss))
 
         return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
@@ -174,7 +181,7 @@ class Trainer(object):
         elif args.dis_criterion.lower()=="smoothl1":
             criterion = torch.nn.SmoothL1Loss()
 
-        min_error = 0.0
+        min_error = 1000.0
 
         print("Start training for %d epochs" % args.epochs)
         start_time = time.time()
@@ -196,7 +203,7 @@ class Trainer(object):
                     
             ## start eval
             test_stats = self.evaluate(self.data_loader_val)
-            print(f"Error of the model on the {len(self.dataset_val)} test images: {test_stats['err']:.1f}%")
+            print(f"Error of the model on the {len(self.dataset_val)} test images: {test_stats['err']*111:.1f} kilometers")
             if min_error > test_stats["err"]:
                 min_error = test_stats["err"]
                 if args.output_dir and args.save_ckpt:
