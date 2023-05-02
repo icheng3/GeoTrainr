@@ -67,10 +67,10 @@ class Trainer(object):
             err, loss_value = 0,0
             for _ in range(update_freq):
                 shuffle_index = torch.randperm(features.size()[0])
-                features_2 = features.copy()[shuffle_index]
-                coords_2 = coords.copy()[shuffle_index]
+                features_2 = features.clone()[shuffle_index]
+                coords_2 = coords.clone()[shuffle_index]
 
-                feature_distance = self.model(torch.concat([features, features_2], dim=-1))
+                feature_distance = self.model(torch.cat([features, features_2], dim=-1))
                 geo_distance = torch.pairwise_distance(coords, coords_2, p=2, keepdim=True)
 
                 loss = criterion(feature_distance, geo_distance)
@@ -148,7 +148,7 @@ class Trainer(object):
                 features_ref = features_ref[:bs]
                 coords_ref = coords_ref[:bs]
 
-            feature_distance = self.model(torch.concat([features, features_ref], dim=-1))
+            feature_distance = self.model(torch.cat([features, features_ref], dim=-1))
             geo_distance = torch.pairwise_distance(coords, coords_ref, p=2, keepdim=True)
 
             loss = criterion(feature_distance, geo_distance)
@@ -220,7 +220,7 @@ class Trainer(object):
                 if args.output_dir and args.save_ckpt:
                     utils.save_model(
                         args=args, model=self.model, optimizer=optimizer, epoch="best")
-            print(f'Min error: {min_error:.2f}%')
+            print(f'Min error: {min_error*111:.2f} kilometers')
 
             if self.log_writer is not None:
                 self.log_writer.update(err=test_stats['err'], head="perf", step=epoch)
@@ -273,6 +273,7 @@ class Trainer(object):
         self.backbone.to(self.device)
         self.backbone.eval()
         self.model = GeoDiscriminator(1024)
+        self.model.to(self.device)
         self.args = args
 
 
@@ -281,8 +282,6 @@ class Trainer(object):
 
         ### build dataset
         self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
-        self.dataset_train.dataset = self.dataset_train.dataset[:50]
-        self.dataset_val.dataset = self.dataset_val.dataset[:50]
         
         ### build dataloaders
         sampler_train = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
@@ -318,5 +317,5 @@ class Trainer(object):
             self.anchor_images.append(imgs)
             self.anchor_coords.append(coords)
 
-        self.anchor_images = torch.concat(self.anchor_images, 0)
-        self.anchor_coords = torch.concat(self.anchor_coords, 0)
+        self.anchor_images = torch.cat(self.anchor_images, 0)
+        self.anchor_coords = torch.cat(self.anchor_coords, 0)
