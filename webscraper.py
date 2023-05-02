@@ -14,7 +14,7 @@ EU_CODES = ['AL', 'AD', 'AT', 'BY', 'BE', 'BA', 'BG', 'HR',
             'ES', 'SE', 'CH', 'UA', 'GB', 'VA']
 API_ENDPOINT = 'https://maps.googleapis.com/maps/api/streetview'
 # change this to your API key
-API_KEY = "AIzaSyCx1LJ5ow1Cvakq9Xcbuz3aI-9bpYqgvPE"
+API_KEY = "AIzaSyDb7HG6b7O-sJQpcL8ruMw5oAYWUt8-biA"
 # number of images to be obtained
 NUM_IMAGES = 50000
 NUM_QUERY = 40000
@@ -24,9 +24,14 @@ loc_data = pd.read_csv('country_data.csv')
 num_rows = loc_data.shape[0]
 random_locs = np.random.choice(num_rows, num_rows, replace=False)
 
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--disable-gpu")
+
 # set this to the path of the driver you download @ https://chromedriver.storage.googleapis.com/index.html
-os.environ['PATH'] += r"/Documents/CS1430_Projects/chromedriver_mac_arm64/chromedriver"
-driver = webdriver.Chrome()
+# os.environ['PATH'] += r"/Documents/CS1430_Projects/chromedriver_mac_arm64/chromedriver"
+driver = webdriver.Chrome(options=chrome_options)
 
 
 
