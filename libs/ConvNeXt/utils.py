@@ -266,6 +266,7 @@ def setup_for_distributed(is_master):
 
 
 def is_dist_avail_and_initialized():
+    return False
     if not dist.is_available():
         return False
     if not dist.is_initialized():

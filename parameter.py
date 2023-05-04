@@ -17,7 +17,7 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=4, type=int,
+    parser.add_argument('--batch_size', default=1, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--experiment', default="dis", type=str, choices=["latlng", "country", "euclidean", "dis"])
@@ -45,9 +45,9 @@ def get_args_parser():
     parser.add_argument('--imagenet_default_mean_and_std', type=str2bool, default=True)
     parser.add_argument('--data_set', default='GeoGuessr', choices=['CIFAR', 'IMNET', 'image_folder', 'GeoGuessr'],
                         type=str, help='ImageNet dataset path')
-    parser.add_argument('--output_dir', default='./logs/Debug_ConvNeXt',
+    parser.add_argument('--output_dir', default='./logs/ConvNextB_dis',
                         help='path where to save, empty for no saving')
-    parser.add_argument('--log_dir', default="./logs/Debug_ConvNeXt",
+    parser.add_argument('--log_dir', default="./logs/ConvNextB_dis",
                         help='path where to tensorboard log')
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
@@ -68,8 +68,8 @@ def get_args_parser():
                         help='Enabling distributed evaluation')
     parser.add_argument('--disable_eval', type=str2bool, default=True,
                         help='Disabling evaluation during training')
-    parser.add_argument('--num_workers', default=0, type=int)
-    parser.add_argument('--pin_mem', type=str2bool, default=True,
+    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--pin_mem', type=str2bool, default=False,
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
 
     # EMA related parameters
@@ -95,10 +95,10 @@ def get_args_parser():
         weight decay. We use a cosine schedule for WD and using a larger decay by
         the end of training improves performance for ViTs.""")
 
-    parser.add_argument('--lr', type=float, default=4e-5, metavar='LR',
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='learning rate (default: 4e-3), with total batch size 4096')
     parser.add_argument('--layer_decay', type=float, default=1.0)
-    parser.add_argument('--min_lr', type=float, default=1e-6, metavar='LR',
+    parser.add_argument('--min_lr', type=float, default=1e-4, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0 (1e-6)')
     parser.add_argument('--warmup_epochs', type=int, default=20, metavar='N',
                         help='epochs to warmup LR, if scheduler supports')
@@ -143,7 +143,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='convnext_base_22k_224.pth',
+    parser.add_argument('--finetune', default='./convnext_base_22k_224.pth',
                         help='finetune from checkpoint')
     parser.add_argument('--head_init_scale', default=1.0, type=float,
                         help='classifier head initial scale, typically adjusted in fine-tuning')
@@ -152,7 +152,7 @@ def get_args_parser():
     parser.add_argument('--model_prefix', default='', type=str)
 
     # distributed training parameters
-    parser.add_argument('--world_size', default=1, type=int,
+    parser.add_argument('--world_size', default=2, type=int,
                         help='number of distributed processes')
     parser.add_argument('--local_rank', default=1, type=int)
     parser.add_argument('--dist_on_itp', type=str2bool, default=False)

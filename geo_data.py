@@ -13,11 +13,10 @@ from timm.data.constants import \
 
 
 class GeoDataset(data.Dataset):
-    def __init__(self, path, transform):
-        images = glob.glob(path+'/*.png')
+    def __init__(self, paths, transform):
         self.cls = []
         self.dataset = []
-        for image in images:
+        for image in paths:
             name = os.path.basename(image)[:-4]
             country, coord = name.split("_")
             lat, lng = coord.split(",")
@@ -68,16 +67,14 @@ def build_geo_dataset(args):
     print("---------------------------")
 
     root = args.data_path
-    trainset = GeoDataset(root, train_transform)
-    testset = GeoDataset(root, test_transform)
-    nb_classes = len(trainset.cls)
-
-    total = len(trainset)
+    images = glob.glob(root+'/*.png')[:1000]
+    total = len(images)
     split = int(0.8*total)
-    random.shuffle(trainset.dataset)
-    testset.dataset = trainset.dataset[split:]
-    trainset.dataset = trainset.dataset[:split]
+    random.shuffle(images)
 
+    trainset = GeoDataset(images[:split], train_transform)
+    testset = GeoDataset(images[split:], test_transform)
+    nb_classes = len(trainset.cls)
     return trainset, testset, nb_classes
     
 

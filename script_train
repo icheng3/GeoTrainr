@@ -1,31 +1,28 @@
-###
- # @FilePath: \undefined\\files.brown.edu\cs-home\zliu177\Desktop\GEDI\script_extract_field
- # @Author: AceSix
- # @Date: 1969-12-31 19:00:00
- # @LastEditors: AceSix
- # @LastEditTime: 2022-11-19 11:28:16
- # Copyright (C) 2022 Brown U. All rights reserved.
-### 
 #!/bin/sh
 #
 #  Execute from the current working directory
 #$ -cwd
 #
 #  This is a long-running job
-#$ -l hour 
+#$ -l inf
 #
-#  Can use up to 8GB of memory
-#$ -l vf=8G
-#
+#  Can use up to 6GB of memory
+#$ -l vf=16G
 #
 #$ -l gpus=1
 #
 #
-
 nvidia-smi
-python3 main.py --model convnext_base --experiment dis \
-    --finetune ./convnext_base_22k_224.pth \
-    --log_dir ./logs/ConvNextB_dis --output_dir ./logs/ConvNextB_dis \
-    --input_size 224 --drop_path 0.1 --batch_size 24 \
-    --data_path ./data --lr 4e-5 --update_freq 1
+# python3 main.py --model convnext_base --experiment dis \
+#     --finetune ./convnext_base_22k_224.pth \
+#     --log_dir ./logs/ConvNextB_dis --output_dir ./logs/ConvNextB_dis \
+#     --input_size 224 --drop_path 0.0 --batch_size 64 \
+#     --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0
     
+
+python3 main.py --model convnext_base --experiment euclidean \
+    --finetune ./convnext_base_22k_224.pth \
+    --log_dir ./logs/ConvNextB_euclidean --output_dir ./logs/ConvNextB_euclidean \
+    --input_size 224 --drop_path 0.0 --batch_size 16 \
+    --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0
+

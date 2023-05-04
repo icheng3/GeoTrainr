@@ -18,7 +18,8 @@ from models.Distancer import GeoDiscriminator
 class Trainer(object):
     def __init__(self, args):
         # print(args)
-        args.distributed = False
+        utils.init_distributed_mode(args)
+        # args.distributed = False
         self.device = torch.device(args.device)
         # fix the seed for reproducibility
         seed = args.seed
@@ -55,7 +56,7 @@ class Trainer(object):
                     param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
 
             bs = samples.shape[0]
-            assert bs%2==0, "batch size must be even number for eus_dis learning"
+            # assert bs%2==0, "batch size must be even number for eus_dis learning"
             samples = samples.to(self.device)
             coords = coords.to(self.device)
 
@@ -63,7 +64,8 @@ class Trainer(object):
             with torch.no_grad():
                 features = self.backbone(samples).detach()
 
-            shuffle_index = torch.randperm(features.shape[0])
+            shuffle_index = np.arange(bs)
+            np.random.shuffle(shuffle_index)
             features_2 = features[shuffle_index]
             coords_2 = coords[shuffle_index]
 
@@ -77,11 +79,10 @@ class Trainer(object):
 
             loss /= update_freq
             loss.backward()
-            if (data_iter_step + 1) % update_freq == 0:
-                optimizer.step()
-                optimizer.zero_grad()
+            optimizer.step()
+            optimizer.zero_grad()
 
-            torch.cuda.synchronize()
+            # torch.cuda.synchronize()
 
             metric_logger.update(loss=loss_value)
             metric_logger.meters['err'].update(err.item(), n=bs)
@@ -220,6 +221,7 @@ class Trainer(object):
             if self.log_writer is not None:
                 self.log_writer.update(err=test_stats['err'], head="perf", step=epoch)
                 self.log_writer.update(test_loss=test_stats['loss'], head="perf", step=epoch)
+                print("logging finish")
 
             log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                          **{f'test_{k}': v for k, v in test_stats.items()},
@@ -227,7 +229,7 @@ class Trainer(object):
                          'n_parameters': n_parameters}
 
 
-            if args.output_dir and utils.is_main_process():
+            if args.output_dir:
                 if self.log_writer is not None:
                     self.log_writer.flush()
                 with open(os.path.join(args.output_dir, "log.txt"), mode="a", encoding="utf-8") as f:
