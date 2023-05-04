@@ -268,6 +268,9 @@ class Trainer(object):
         ### build dataset
         self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
 
+        ### number of labels
+        print("Num of labels = " + str(len(self.dataset_train.cls)))
+
         ### build dataloaders
         sampler_train = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
         print("Sampler_train = %s" % str(sampler_train))
