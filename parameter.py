@@ -21,8 +21,7 @@ def get_args_parser():
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--experiment', default="dis", type=str, choices=["latlng", "country", "euclidean", "dis"])
-    parser.add_argument('--update_freq', default=4, type=int,
-                        help='gradient accumulation steps')
+    parser.add_argument('--update_freq', default=1, type=int, help='gradient accumulation steps')
 
     # Model parameters
     parser.add_argument('--model', default='convnext_base', type=str, metavar='MODEL',
@@ -65,11 +64,11 @@ def get_args_parser():
                         help='start epoch')
     parser.add_argument('--eval', type=str2bool, default=False,
                         help='Perform evaluation only')
-    parser.add_argument('--dist_eval', type=str2bool, default=True,
+    parser.add_argument('--dist_eval', type=str2bool, default=False,
                         help='Enabling distributed evaluation')
     parser.add_argument('--disable_eval', type=str2bool, default=True,
                         help='Disabling evaluation during training')
-    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--num_workers', default=0, type=int)
     parser.add_argument('--pin_mem', type=str2bool, default=True,
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
 

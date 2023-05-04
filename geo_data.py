@@ -101,6 +101,7 @@ def build_transform(is_train, args):
             re_count=args.recount,
             mean=mean,
             std=std,
+            scale = (0.8, 1.0)
         )
         if not resize_im:
             transform.transforms[0] = transforms.RandomCrop(

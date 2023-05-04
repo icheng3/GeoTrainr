@@ -57,32 +57,30 @@ class Trainer(object):
 
             bs = samples.shape[0]
             assert bs%2==0, "batch size must be even number for eus_dis learning"
-            samples = samples.to(self.device, non_blocking=True)
-            coords = coords.to(self.device, non_blocking=True)
+            samples = samples.to(self.device)
+            coords = coords.to(self.device)
 
             # compute output
             with torch.no_grad():
-                features = self.backbone(samples)
+                features = self.backbone(samples).detach()
 
-            err, loss_value = 0,0
-            for _ in range(update_freq):
-                shuffle_index = torch.randperm(features.size()[0])
-                features_2 = features.clone()[shuffle_index]
-                coords_2 = coords.clone()[shuffle_index]
+            shuffle_index = torch.randperm(features.shape[0])
+            features_2 = features[shuffle_index]
+            coords_2 = coords[shuffle_index]
 
-                feature_distance = self.model(torch.cat([features, features_2], dim=-1))
-                geo_distance = torch.pairwise_distance(coords, coords_2, p=2, keepdim=True)
+            feature_distance = self.model(torch.cat([features, features_2], dim=-1))
+            geo_distance = torch.pairwise_distance(coords, coords_2, p=2, keepdim=True)
 
-                loss = criterion(feature_distance, geo_distance)
-            
-                err += (geo_distance - feature_distance).abs().mean()/update_freq
-                loss_value += loss.item()
+            loss = criterion(feature_distance, geo_distance)
+        
+            err = (geo_distance - feature_distance).abs().mean()
+            loss_value = loss.item()
 
-                loss /= update_freq
-                loss.backward()
-                
-            optimizer.step()
-            optimizer.zero_grad()
+            loss /= update_freq
+            loss.backward()
+            if (data_iter_step + 1) % update_freq == 0:
+                optimizer.step()
+                optimizer.zero_grad()
 
             torch.cuda.synchronize()
 
@@ -138,10 +136,10 @@ class Trainer(object):
 
             images = images.to(self.device, non_blocking=True)
             coords = coords.to(self.device, non_blocking=True)
-            coords_ref = self.anchor_coords.to(self.device, non_blocking=True)
+            coords_ref = self.anchor_coords
 
             # compute output
-            features_ref = self.backbone(self.anchor_images.to(self.device, non_blocking=True))
+            features_ref = self.backbone(self.anchor_images)
             features = self.backbone(images)
 
             if bs<features_ref.shape[0]:
@@ -197,8 +195,6 @@ class Trainer(object):
         print("Start training for %d epochs" % args.epochs)
         start_time = time.time()
         for epoch in range(args.start_epoch, args.epochs):
-            if args.distributed:
-                self.data_loader_train.sampler.set_epoch(epoch)
             if self.log_writer is not None:
                 self.log_writer.set_step(epoch * num_training_steps_per_epoch * args.update_freq)
 
@@ -308,14 +304,15 @@ class Trainer(object):
         )
         self.args = args
 
-
-        train_iter = iter(self.data_loader_train) 
         self.anchor_images = []
         self.anchor_coords = []
-        for _ in range(2):
-            (imgs, coords, _) = next(train_iter)
+
+        anchors = np.random.choice(np.arange(len(self.dataset_train.dataset)), size=args.batch_size*2, replace=False)
+        for i in anchors:
+            imgs, coords, _ = self.dataset_train.__getitem__(i)
             self.anchor_images.append(imgs)
             self.anchor_coords.append(coords)
 
-        self.anchor_images = torch.cat(self.anchor_images, 0)
-        self.anchor_coords = torch.cat(self.anchor_coords, 0)
+        self.anchor_images = torch.cat(self.anchor_images, 0).to(self.device, non_blocking=True)
+        self.anchor_coords = torch.stack(self.anchor_coords, 0).to(self.device, non_blocking=True)
+        print("finished setting anchors")
