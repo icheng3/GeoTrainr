@@ -313,6 +313,6 @@ class Trainer(object):
             self.anchor_images.append(imgs)
             self.anchor_coords.append(coords)
 
-        self.anchor_images = torch.cat(self.anchor_images, 0).to(self.device, non_blocking=True)
+        self.anchor_images = torch.stack(self.anchor_images, 0).to(self.device, non_blocking=True)
         self.anchor_coords = torch.stack(self.anchor_coords, 0).to(self.device, non_blocking=True)
         print("finished setting anchors")

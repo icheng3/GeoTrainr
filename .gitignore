@@ -1,3 +1,4 @@
 *.pth
 logs
 script_train*
+__pycache__
