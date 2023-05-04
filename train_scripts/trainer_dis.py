@@ -9,7 +9,7 @@ import torch.backends.cudnn as cudnn
 from timm.utils import accuracy
 
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
-from libs.ConvNeXt import utils, build_dataset, create_optimizer
+from libs.ConvNeXt import build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
 from geo_data import build_geo_dataset
@@ -28,8 +28,8 @@ class Trainer(object):
 
         self.args = args
 
-        self.load_data()
         self.build_model()
+        self.load_data()
 
 
     def train_epoch(self, epoch, criterion, optimizer, data_loader, 
@@ -39,7 +39,7 @@ class Trainer(object):
         metric_logger = utils.MetricLogger(delimiter="  ")
         metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
         metric_logger.add_meter('min_lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
-        header = 'Epoch: [{}]'.format(epoch)
+        header = f'Epoch: [{epoch}]'
         print_freq = 10
 
         optimizer.zero_grad()
@@ -51,9 +51,8 @@ class Trainer(object):
             it = start_steps + step  # global training iteration
             # Update LR & WD for the first acc
             if lr_schedule_values is not None:
-                for i, param_group in enumerate(optimizer.param_groups):
-                    if lr_schedule_values is not None:
-                        param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
+                for param_group in optimizer.param_groups:
+                    param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
 
             bs = samples.shape[0]
             assert bs%2==0, "batch size must be even number for eus_dis learning"
@@ -278,7 +277,7 @@ class Trainer(object):
 
         ### build dataset
         self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
-        
+        print(args.num_workers)
         ### build dataloaders
         self.data_loader_train = torch.utils.data.DataLoader(
             self.dataset_train, shuffle=True,
