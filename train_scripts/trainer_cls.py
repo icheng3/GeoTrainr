@@ -13,6 +13,7 @@ from libs.ConvNeXt import utils, build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
 from geo_data import build_geo_dataset
+from transformers import BitForImageClassification
 
 class Trainer(object):
     def __init__(self, args):
@@ -58,6 +59,9 @@ class Trainer(object):
             targets = targets.to(self.device, non_blocking=True)
 
             output = self.model(samples)
+            if self.args.model == "bit_base":
+                output = output.logits
+            
             loss = criterion(output, targets)
 
             loss_value = loss.item()
@@ -233,19 +237,25 @@ class Trainer(object):
                                 drop_path_rate=args.drop_path, 
                                 layer_scale_init_value=args.layer_scale_init_value, 
                                 head_init_scale=args.head_init_scale)
+            if args.finetune: ### should always be true
+                checkpoint_model = torch.load(args.finetune, map_location='cpu')['model']
+                state_dict = self.model.state_dict()
+                # print(missing_keys)
 
-        if args.finetune: ### should always be true
-            checkpoint_model = torch.load(args.finetune, map_location='cpu')['model']
-            state_dict = self.model.state_dict()
-            # print(missing_keys)
-
-            for k in ['head.weight', 'head.bias']:
-                if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                    # print(f"Removing key {k} from pretrained checkpoint")
-                    del checkpoint_model[k]
-            # utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
-            missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=False)
-            print("missed_keys:", missing_keys)
+                for k in ['head.weight', 'head.bias']:
+                    if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+                        # print(f"Removing key {k} from pretrained checkpoint")
+                        del checkpoint_model[k]
+                # utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
+                missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=False)
+                print("missed_keys:", missing_keys)
+        if args.model == "bit_base":
+            self.model = BitForImageClassification.from_pretrained("google/bit-50")
+            self.model.classifier = torch.nn.Sequential(torch.nn.Flatten(start_dim=1, end_dim=-1),
+                                                        torch.nn.Linear(2048, args.nb_classes, bias=True))
+            for name, param in self.model.named_parameters():
+                if "classifier" not in name:
+                    param.requires_grad = False
 
         self.model.to(self.device)
         self.args = args
