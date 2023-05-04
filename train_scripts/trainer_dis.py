@@ -17,11 +17,11 @@ from models.Distancer import GeoDiscriminator
 
 class Trainer(object):
     def __init__(self, args):
-        utils.init_distributed_mode(args)
         # print(args)
+        args.distributed = False
         self.device = torch.device(args.device)
         # fix the seed for reproducibility
-        seed = args.seed + utils.get_rank()
+        seed = args.seed
         torch.manual_seed(seed)
         np.random.seed(seed)
         cudnn.benchmark = True
@@ -109,7 +109,7 @@ class Trainer(object):
                 self.log_writer.set_step()
 
         # gather the stats from all processes
-        metric_logger.synchronize_between_processes()
+        # metric_logger.synchronize_between_processes()
         print("Averaged stats:", metric_logger)
         return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
     
@@ -280,10 +280,8 @@ class Trainer(object):
         self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
         
         ### build dataloaders
-        sampler_train = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
-        print("Sampler_train = %s" % str(sampler_train))
         self.data_loader_train = torch.utils.data.DataLoader(
-            self.dataset_train, sampler=sampler_train,
+            self.dataset_train, shuffle=True,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             pin_memory=args.pin_mem,
@@ -294,9 +292,8 @@ class Trainer(object):
             os.makedirs(args.log_dir, exist_ok=True)
             self.log_writer = utils.TensorboardLogger(log_dir=args.log_dir)
 
-        sampler_val = torch.utils.data.RandomSampler(self.dataset_val, replacement=False)
         self.data_loader_val = torch.utils.data.DataLoader(
-            self.dataset_val, sampler=sampler_val,
+            self.dataset_val, shuffle=True,
             batch_size=int(2 * args.batch_size),
             num_workers=args.num_workers,
             pin_memory=args.pin_mem,
