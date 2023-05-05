@@ -129,6 +129,8 @@ class Trainer(object):
 
             # compute output
             output = self.model(images)
+            if self.args.model == "bit_base":
+                output = output.logits
             loss = criterion(output, target)
 
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
