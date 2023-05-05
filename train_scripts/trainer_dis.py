@@ -3,6 +3,7 @@ import datetime
 import numpy as np
 import json
 import time
+import sys
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -31,6 +32,7 @@ class Trainer(object):
 
         self.build_model()
         self.load_data()
+        sys.stdout.flush()
 
 
     def train_epoch(self, epoch, criterion, optimizer, data_loader, 
@@ -73,8 +75,8 @@ class Trainer(object):
             geo_distance = torch.pairwise_distance(coords, coords_2, p=2, keepdim=True)
 
             loss = criterion(feature_distance, geo_distance)
-        
             err = (geo_distance - feature_distance).abs().mean()
+
             loss_value = loss.item()
 
             loss /= update_freq
@@ -124,6 +126,7 @@ class Trainer(object):
             criterion = torch.nn.SmoothL1Loss()
 
         metric_logger = utils.MetricLogger(delimiter="  ")
+        metric_logger.add_meter('err', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
         header = 'Test:'
 
         # switch to evaluation mode
@@ -192,7 +195,12 @@ class Trainer(object):
 
         min_error = 1000.0
 
+        utils.auto_load_model(
+            args=args, model=self.model, model_without_ddp=self.model,
+            optimizer=optimizer, loss_scaler=None, model_ema=None)
+
         print("Start training for %d epochs" % args.epochs)
+        sys.stdout.flush()
         start_time = time.time()
         for epoch in range(args.start_epoch, args.epochs):
             if self.log_writer is not None:
@@ -217,6 +225,7 @@ class Trainer(object):
                     utils.save_model(
                         args=args, model=self.model, optimizer=optimizer, epoch="best")
             print(f'Min error: {min_error*111:.2f} kilometers')
+            sys.stdout.flush()
 
             if self.log_writer is not None:
                 self.log_writer.update(err=test_stats['err'], head="perf", step=epoch)

@@ -7,6 +7,7 @@
 
 
 import os
+import sys
 import math
 import time
 from collections import defaultdict, deque
@@ -161,6 +162,8 @@ class MetricLogger(object):
                         i, len(iterable), eta=eta_string,
                         meters=str(self),
                         time=str(iter_time), data=str(data_time)))
+                    
+                sys.stdout.flush()
             i += 1
             end = time.time()
         total_time = time.time() - start_time
@@ -266,7 +269,7 @@ def setup_for_distributed(is_master):
 
 
 def is_dist_avail_and_initialized():
-    return False
+    # return False
     if not dist.is_available():
         return False
     if not dist.is_initialized():

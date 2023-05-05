@@ -55,7 +55,7 @@ def build_geo_dataset(args):
         for t in train_transform.transforms:
             print(t)
     print("---------------------------")
-    print("Train Transform = ")
+    print("Test Transform = ")
     if isinstance(test_transform, tuple):
         for trans in test_transform:
             print(" - - - - - - - - - - ")
@@ -67,7 +67,7 @@ def build_geo_dataset(args):
     print("---------------------------")
 
     root = args.data_path
-    images = glob.glob(root+'/*.png')[:1000]
+    images = glob.glob(root+'/*.png')
     total = len(images)
     split = int(0.8*total)
     random.shuffle(images)

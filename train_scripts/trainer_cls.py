@@ -249,8 +249,9 @@ class Trainer(object):
                 # utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
                 missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=False)
                 print("missed_keys:", missing_keys)
+
         if args.model == "bit_base":
-            self.model = BitForImageClassification.from_pretrained("google/bit-50")
+            self.model = BitForImageClassification.from_pretrained(args.finetune)
             self.model.classifier = torch.nn.Sequential(torch.nn.Flatten(start_dim=1, end_dim=-1),
                                                         torch.nn.Linear(2048, args.nb_classes, bias=True))
             for name, param in self.model.named_parameters():
