@@ -256,9 +256,9 @@ class Trainer(object):
             self.model = BitForImageClassification.from_pretrained(args.finetune)
             self.model.classifier = torch.nn.Sequential(torch.nn.Flatten(start_dim=1, end_dim=-1),
                                                         torch.nn.Linear(2048, args.nb_classes, bias=True))
-            for name, param in self.model.named_parameters():
-                if "classifier" not in name:
-                    param.requires_grad = False
+            # for name, param in self.model.named_parameters():
+            #     if "classifier" not in name:
+            #         param.requires_grad = False
 
         self.model.to(self.device)
         self.args = args

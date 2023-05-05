@@ -22,3 +22,8 @@ if __name__ == '__main__':
         from train_scripts.trainer_dis_euc import Trainer
         trainer = Trainer(args)
         trainer.train()
+        
+    if args.experiment == "latlng":
+        from train_scripts.trainer_latlng import Trainer
+        trainer = Trainer(args)
+        trainer.train()

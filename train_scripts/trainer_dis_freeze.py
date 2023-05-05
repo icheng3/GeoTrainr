@@ -10,12 +10,11 @@ import torch.backends.cudnn as cudnn
 from timm.utils import accuracy
 
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
-from libs.ConvNeXt import build_dataset, create_optimizer, create_optimizer_multi
+from libs.ConvNeXt import build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
 from geo_data import build_geo_dataset, anchor_samples, create_anchor_transform
 from models.Distancer import GeoDiscriminator
-
 
 class Trainer(object):
     def __init__(self, args):
@@ -40,7 +39,6 @@ class Trainer(object):
                         start_steps, update_freq, num_training_steps_per_epoch, 
                         lr_schedule_values):
         self.model.train(True)
-        self.backbone.train(True)
         metric_logger = utils.MetricLogger(delimiter="  ")
         metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
         metric_logger.add_meter('min_lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -65,10 +63,12 @@ class Trainer(object):
             coords = coords.to(self.device)
 
             # compute output
-            features = self.backbone(samples)
+            with torch.no_grad():
+                features = self.backbone(samples).detach()
+
             shuffle_index = np.arange(bs)
             np.random.shuffle(shuffle_index)
-            features_2 = self.backbone(samples[shuffle_index])
+            features_2 = features[shuffle_index]
             coords_2 = coords[shuffle_index]
 
             feature_distance = self.model(torch.cat([features, features_2], dim=-1))
@@ -84,7 +84,7 @@ class Trainer(object):
             optimizer.step()
             optimizer.zero_grad()
 
-            torch.cuda.synchronize()
+            # torch.cuda.synchronize()
 
             metric_logger.update(loss=loss_value)
             metric_logger.meters['err'].update(err.item(), n=bs)
@@ -129,11 +129,8 @@ class Trainer(object):
         metric_logger.add_meter('err', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
         header = 'Test:'
 
-        ref_num = self.anchor_images.shape[0]
-
         # switch to evaluation mode
         self.model.eval()
-        self.backbone.eval()
         for batch in metric_logger.log_every(data_loader, 10, header):
             images = batch[0]
             coords = batch[1]
@@ -142,22 +139,24 @@ class Trainer(object):
 
             images = images.to(self.device, non_blocking=True)
             coords = coords.to(self.device, non_blocking=True)
-            coords_ref = self.anchor_coords.to(self.device, non_blocking=True)
+            coords_ref = self.anchor_coords
 
             # compute output
-            features_ref = self.backbone(self.anchor_images.to(self.device, non_blocking=True))
+            features_ref = self.backbone(self.anchor_images)
             features = self.backbone(images)
 
-            loss, err = 0, 0
-            for i in range(ref_num):
-                feature_distance = self.model(torch.cat([features, features_ref[i:i+1].repeat(bs, 1)], dim=-1))
-                geo_distance = torch.pairwise_distance(coords, coords_ref[i:i+1].repeat(bs, 1), p=2, keepdim=True)
+            if bs<features_ref.shape[0]:
+                features_ref = features_ref[:bs]
+                coords_ref = coords_ref[:bs]
 
-                loss += criterion(feature_distance, geo_distance).item()/ref_num
-                err  += (geo_distance - feature_distance).abs().mean().item()/ref_num
+            feature_distance = self.model(torch.cat([features, features_ref], dim=-1))
+            geo_distance = torch.pairwise_distance(coords, coords_ref, p=2, keepdim=True)
 
-            metric_logger.update(loss=loss)
-            metric_logger.meters['err'].update(err, n=bs)
+            loss = criterion(feature_distance, geo_distance)
+            err = (geo_distance - feature_distance).abs().mean()
+
+            metric_logger.update(loss=loss.item())
+            metric_logger.meters['err'].update(err.item(), n=bs)
         # gather the stats from all processes
         metric_logger.synchronize_between_processes()
         print('* Avg Error {err.global_avg:.3f} loss {losses.global_avg:.3f}'
@@ -169,8 +168,7 @@ class Trainer(object):
     def train(self):
         args = self.args
 
-        n_parameters = sum(p.numel() for p in self.backbone.parameters() if p.requires_grad)
-        n_parameters += sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print('number of params:', n_parameters)
 
         ### build training setting
@@ -182,9 +180,7 @@ class Trainer(object):
         print("Number of training examples = %d" % len(self.dataset_train))
         print("Number of training steps per epoch = %d" % num_training_steps_per_epoch)
 
-        optimizer = create_optimizer_multi(args, 
-                                           [self.backbone, self.model], 
-                                           skip_list=None)
+        optimizer = create_optimizer(args, self.model, skip_list=None)
         lr_schedule_values = utils.cosine_scheduler(
             args.lr, args.min_lr, args.epochs, num_training_steps_per_epoch,
             warmup_epochs=args.warmup_epochs, warmup_steps=args.warmup_steps,
@@ -277,10 +273,11 @@ class Trainer(object):
             missing_keys, _ = self.backbone.load_state_dict(checkpoint_model, strict=False)
             print("missed_keys:", missing_keys)
 
-        # for param in self.backbone.parameters():
-        #     param.requires_grad = False
+        for param in self.backbone.parameters():
+            param.requires_grad = False
 
         self.backbone.to(self.device)
+        self.backbone.eval()
         self.model = GeoDiscriminator(1024)
         self.model.to(self.device)
         self.args = args
@@ -290,7 +287,7 @@ class Trainer(object):
         args = self.args
 
         ### build dataset
-        self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args, trim=True)
+        self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
         print("num workers: ", args.num_workers)
         ### build dataloaders
         sampler_train = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
