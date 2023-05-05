@@ -12,6 +12,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from libs.ConvNeXt import utils, build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
+import libs.bit_pytorch.models as bit_models
 from geo_data import build_geo_dataset
 from transformers import BitForImageClassification
 
@@ -260,6 +261,11 @@ class Trainer(object):
             #     if "classifier" not in name:
             #         param.requires_grad = False
 
+        if args.model == "BiT-M-R101x3":
+            # wget https://storage.googleapis.com/bit_models/vtab/BiT-M-R101x3-run2-caltech101.npz
+            self.model = bit_models.KNOWN_MODELS[args.model](head_size=args.nb_classes, zero_head=True)
+            self.model.load_from(np.load(args.finetune))
+            
         self.model.to(self.device)
         self.args = args
 

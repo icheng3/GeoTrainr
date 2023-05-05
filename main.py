@@ -27,3 +27,4 @@ if __name__ == '__main__':
         from train_scripts.trainer_latlng import Trainer
         trainer = Trainer(args)
         trainer.train()
+
