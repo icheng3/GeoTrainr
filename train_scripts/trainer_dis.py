@@ -60,19 +60,14 @@ class Trainer(object):
                     param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
 
             bs = samples.shape[0]
-            # assert bs%2==0, "batch size must be even number for eus_dis learning"
+            assert bs%2==0, "batch size must be even number for eus_dis learning"
             samples = samples.to(self.device)
             coords = coords.to(self.device)
 
             # compute output
             features = self.backbone(samples)
-            shuffle_index = np.arange(bs)
-            np.random.shuffle(shuffle_index)
-            features_2 = self.backbone(samples[shuffle_index])
-            coords_2 = coords[shuffle_index]
-
-            feature_distance = self.model(torch.cat([features, features_2], dim=-1))
-            geo_distance = torch.pairwise_distance(coords, coords_2, p=2, keepdim=True)
+            feature_distance = self.model(torch.cat([features[:bs//2], features[bs//2:]], dim=-1))*10
+            geo_distance = torch.pairwise_distance(coords[:bs//2], coords[bs//2:], p=2, keepdim=True)
 
             loss = criterion(feature_distance, geo_distance)
             err = (geo_distance - feature_distance).abs().mean()
@@ -150,7 +145,7 @@ class Trainer(object):
 
             loss, err = 0, 0
             for i in range(ref_num):
-                feature_distance = self.model(torch.cat([features, features_ref[i:i+1].repeat(bs, 1)], dim=-1))
+                feature_distance = self.model(torch.cat([features, features_ref[i:i+1].repeat(bs, 1)], dim=-1))*10
                 geo_distance = torch.pairwise_distance(coords, coords_ref[i:i+1].repeat(bs, 1), p=2, keepdim=True)
 
                 loss += criterion(feature_distance, geo_distance).item()/ref_num
