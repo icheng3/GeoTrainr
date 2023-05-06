@@ -55,7 +55,7 @@ for i in random_locs:
 
     if os.path.exists(f'data/{country_code}_{loc}.png'):
         seen += 1
-        pass
+        continue
 
     metadata_request = f'{API_ENDPOINT}/metadata?size={IMG_SIZE}x{IMG_SIZE}&location={loc}&fov=80&heading=70&pitch=0&key={API_KEY}'
     driver.get(metadata_request)
