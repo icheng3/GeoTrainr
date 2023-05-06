@@ -19,7 +19,7 @@ API_ENDPOINT = 'https://maps.googleapis.com/maps/api/streetview'
 API_KEY = "AIzaSyCx1LJ5ow1Cvakq9Xcbuz3aI-9bpYqgvPE"
 # number of images to be obtained
 NUM_IMAGES = 50000
-NUM_QUERY = 40000
+NUM_QUERY = 30000
 
 # load data
 loc_data = pd.read_csv('country_data.csv')
