@@ -17,14 +17,14 @@ def str2bool(v):
 
 def get_args_parser():
     parser = argparse.ArgumentParser('ConvNeXt training and evaluation script for image classification', add_help=False)
-    parser.add_argument('--batch_size', default=1, type=int,
+    parser.add_argument('--batch_size', default=4, type=int,
                         help='Per GPU batch size')
     parser.add_argument('--epochs', default=300, type=int)
-    parser.add_argument('--experiment', default="dis", type=str, choices=["latlng", "country", "euclidean", "dis", "ivnf", "dis_freeze"])
+    parser.add_argument('--experiment', default="country", type=str, choices=["latlng", "country", "euclidean", "dis"])
     parser.add_argument('--update_freq', default=1, type=int, help='gradient accumulation steps')
 
     # Model parameters
-    parser.add_argument('--model', default='convnext_base', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='BiT-M-R101x3', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--drop_path', type=float, default=0, metavar='PCT',
                         help='Drop path rate (default: 0.0)')
@@ -143,7 +143,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='./convnext_base_22k_224.pth',
+    parser.add_argument('--finetune', default='./BiT-M-R101x3-run2-caltech101.npz',
                         help='finetune from checkpoint')
     parser.add_argument('--head_init_scale', default=1.0, type=float,
                         help='classifier head initial scale, typically adjusted in fine-tuning')
