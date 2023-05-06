@@ -31,7 +31,7 @@ python3 main.py --model convnext_base --experiment latlng \
     --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
     --log_dir ./logs/ConvNextB_latlng --output_dir ./logs/ConvNextB_latlng \
     --input_size 224 --drop_path 0.0 --batch_size 16 \
-    --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume True
+    --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
 # python3 main.py --model convnext_base --experiment dis_freeze \
 #     --finetune ./convnext_base_22k_224.pth --device cuda \

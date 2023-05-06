@@ -57,8 +57,8 @@ class Trainer(object):
 
             bs = samples.shape[0]
             assert bs%2==0, "batch size must be even number for eus_dis learning"
-            samples = samples.to(self.device, non_blocking=True)
-            coords = coords.to(self.device, non_blocking=True)
+            samples = samples.to(self.device)
+            coords = coords.to(self.device)
 
             # compute output
             preds = self.model(samples)*10
@@ -126,8 +126,8 @@ class Trainer(object):
             bs = images.shape[0]
             assert bs%2==0, "batch size must be even number for eus_dis learning"
 
-            images = images.to(self.device, non_blocking=True)
-            coords = coords.to(self.device, non_blocking=True)
+            images = images.to(self.device)
+            coords = coords.to(self.device)
 
             # compute output
             preds = self.model(images)*10

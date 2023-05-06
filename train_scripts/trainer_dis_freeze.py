@@ -64,7 +64,7 @@ class Trainer(object):
 
             # compute output
             with torch.no_grad():
-                features = self.backbone(samples)
+                features = self.backbone(samples).detach()
 
             feature_distance = self.model(torch.cat([features[:bs//2], features[bs//2:]], dim=-1))
             feature_distance = torch.sigmoid(feature_distance)*10
@@ -83,7 +83,7 @@ class Trainer(object):
             # torch.cuda.synchronize()
 
             metric_logger.update(loss=loss_value)
-            metric_logger.meters['err'].update(err.item(), n=bs)
+            metric_logger.meters['err'].update(err.detach().item(), n=bs)
             min_lr = 10.
             max_lr = 0.
             for group in optimizer.param_groups:
@@ -134,8 +134,8 @@ class Trainer(object):
             bs = images.shape[0]
             assert bs%2==0, "batch size must be even number for eus_dis learning"
 
-            images = images.to(self.device, non_blocking=True)
-            coords = coords.to(self.device, non_blocking=True)
+            images = images.to(self.device)
+            coords = coords.to(self.device)
             coords_ref = self.anchor_coords
 
             # compute output
@@ -158,7 +158,7 @@ class Trainer(object):
             err = (geo_distance - feature_distance).abs().mean()
 
             metric_logger.update(loss=loss.item())
-            metric_logger.meters['err'].update(err.item(), n=bs)
+            metric_logger.meters['err'].update(err.detach().item(), n=bs)
         # gather the stats from all processes
         metric_logger.synchronize_between_processes()
         print('* Avg Error {err.global_avg:.3f} loss {losses.global_avg:.3f}'
@@ -330,5 +330,5 @@ class Trainer(object):
             self.anchor_images.append(anchor_transform(img))
             self.anchor_coords.append(torch.Tensor(latlng))
 
-        self.anchor_images = torch.stack(self.anchor_images, 0)
-        self.anchor_coords = torch.stack(self.anchor_coords, 0)
+        self.anchor_images = torch.stack(self.anchor_images, 0).to(self.device)
+        self.anchor_coords = torch.stack(self.anchor_coords, 0).to(self.device)
