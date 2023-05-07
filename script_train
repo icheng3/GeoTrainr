@@ -50,7 +50,7 @@ nvidia-smi
 python3 main.py --model convnext_base --experiment dis \
     --finetune ./logs/ConvNextB_cls_final/checkpoint-best.pth --device cuda \
     --log_dir ./logs/ConvNextB_dis_bal --output_dir ./logs/ConvNextB_dis_bal \
-    --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 5000 \
+    --input_size 224 --drop_path 0.0 --batch_size 128 --warmup_epochs 5 \
     --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0 --auto_resume False
 
 # python3 main.py --model convnext_base --experiment dis \
