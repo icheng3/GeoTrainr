@@ -19,7 +19,7 @@ API_ENDPOINT = 'https://maps.googleapis.com/maps/api/streetview'
 API_KEY = "AIzaSyCx1LJ5ow1Cvakq9Xcbuz3aI-9bpYqgvPE"
 # number of images to be obtained
 NUM_IMAGES = 50000
-NUM_QUERY = 40000
+NUM_QUERY = 30000
 
 # load data
 loc_data = pd.read_csv('country_data.csv')
@@ -55,7 +55,7 @@ for i in random_locs:
 
     if os.path.exists(f'data/{country_code}_{loc}.png'):
         seen += 1
-        pass
+        continue
 
     metadata_request = f'{API_ENDPOINT}/metadata?size={IMG_SIZE}x{IMG_SIZE}&location={loc}&fov=80&heading=70&pitch=0&key={API_KEY}'
     driver.get(metadata_request)
