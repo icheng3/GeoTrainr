@@ -336,7 +336,7 @@ class Trainer(object):
         args = self.args
 
         ### build dataset
-        self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args)
+        self.dataset_train, self.dataset_val, args.nb_classes = build_geo_dataset(args=args, trim=True)
         print("num workers: ", args.num_workers)
         ### build dataloaders
         sampler_train = torch.utils.data.RandomSampler(self.dataset_train, replacement=False)
