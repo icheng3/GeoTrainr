@@ -71,7 +71,7 @@ class Trainer(object):
             geo_distance = torch.pairwise_distance(coords[:bs//2], coords[bs//2:], p=2, keepdim=True).clip(0, 10)
 
             loss = criterion(feature_distance, geo_distance)
-            err = (geo_distance - feature_distance).abs().mean()
+            err = (geo_distance - feature_distance).abs().mean().item()
 
             loss_value = loss.item()
 
@@ -83,7 +83,7 @@ class Trainer(object):
             # torch.cuda.synchronize()
 
             metric_logger.update(loss=loss_value)
-            metric_logger.meters['err'].update(err.detach().item(), n=bs)
+            metric_logger.meters['err'].update(err, n=bs)
             min_lr = 10.
             max_lr = 0.
             for group in optimizer.param_groups:
@@ -153,12 +153,6 @@ class Trainer(object):
 
             metric_logger.update(loss=loss)
             metric_logger.meters['err'].update(err, n=bs)
-
-            loss = criterion(feature_distance, geo_distance)
-            err = (geo_distance - feature_distance).abs().mean()
-
-            metric_logger.update(loss=loss.item())
-            metric_logger.meters['err'].update(err.detach().item(), n=bs)
         # gather the stats from all processes
         metric_logger.synchronize_between_processes()
         print('* Avg Error {err.global_avg:.3f} loss {losses.global_avg:.3f}'
@@ -279,6 +273,9 @@ class Trainer(object):
             param.requires_grad = False
 
         self.backbone.to(self.device)
+        for param in self.backbone.parameters():
+            print("grad setting: ", param.requires_grad)
+            break
         self.backbone.eval()
         self.model = GeoDiscriminator(1024)
         self.model.to(self.device)
