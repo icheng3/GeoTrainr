@@ -238,7 +238,7 @@ class Trainer(object):
         args = self.args
         ### build model and load pretrained params
         if args.model == "convnext_base":
-            self.model = ConvNeXtFeature(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024],
+            self.model = ConvNeXt(depths=[3, 3, 27, 3], dims=[128, 256, 512, 1024],
                                 num_classes=args.nb_classes,
                                 drop_path_rate=args.drop_path, 
                                 layer_scale_init_value=args.layer_scale_init_value, 

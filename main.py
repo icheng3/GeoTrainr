@@ -7,6 +7,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+
+    print(args.experiment)
+    print(args.model)
+    print(args.output_dir)
     
     if args.experiment == "country":
         from train_scripts.trainer_cls import Trainer
@@ -14,7 +18,7 @@ if __name__ == '__main__':
         trainer.train()
 
     if args.experiment == "dis":
-        from train_scripts.trainer_dis import Trainer
+        from train_scripts.trainer_dis_debug import Trainer
         trainer = Trainer(args)
         trainer.train()
     

@@ -47,16 +47,30 @@ class Trainer(object):
 
         optimizer.zero_grad()
 
-        for data_iter_step, (samples, coords, _) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+        start_time = time.time()
+        end = time.time()
+        loader_size = len(data_loader)
+        iter_time = utils.SmoothedValue(fmt='{avg:.4f}')
+        data_time = utils.SmoothedValue(fmt='{avg:.4f}')
+        space_fmt = f':{len(str(loader_size))}d'
+        log_msg = [
+            header,
+            '[{0' + space_fmt + '}/{1}]',
+            'eta: {eta}',
+            '{meters}',
+            'time: {time}',
+            'data: {data}'
+        ]
+        log_msg = "\t".join(log_msg)
+
+        i = 0
+        for data_iter_step, (samples, coords, _) in enumerate(data_loader):            
             step = data_iter_step // update_freq
-            if step >= num_training_steps_per_epoch:
-                continue
             it = start_steps + step  # global training iteration
-            # Update LR & WD for the first acc
+            data_time.update(time.time() - end)
             if lr_schedule_values is not None:
                 for param_group in optimizer.param_groups:
                     param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
-
             bs = samples.shape[0]
             # assert bs%2==0, "batch size must be even number for eus_dis learning"
             samples = samples.to(self.device)
@@ -71,7 +85,8 @@ class Trainer(object):
             geo_distance = torch.pairwise_distance(coords[:bs//2], coords[bs//2:], p=2, keepdim=True).clip(0, 10)
 
             loss = criterion(feature_distance, geo_distance)
-            err = (geo_distance - feature_distance).abs().mean().item()
+            with torch.no_grad():
+                err = (geo_distance - feature_distance.detach()).cpu().abs().mean()
 
             loss_value = loss.item()
 
@@ -83,7 +98,7 @@ class Trainer(object):
             # torch.cuda.synchronize()
 
             metric_logger.update(loss=loss_value)
-            metric_logger.meters['err'].update(err, n=bs)
+            metric_logger.meters['err'].update(err.item(), n=bs)
             min_lr = 10.
             max_lr = 0.
             for group in optimizer.param_groups:
@@ -98,13 +113,31 @@ class Trainer(object):
                     weight_decay_value = group["weight_decay"]
             metric_logger.update(weight_decay=weight_decay_value)
 
-            if self.log_writer is not None:
-                self.log_writer.update(loss=loss_value, head="loss")
-                self.log_writer.update(err=err, head="error")
-                self.log_writer.update(lr=max_lr, head="opt")
-                self.log_writer.update(min_lr=min_lr, head="opt")
-                self.log_writer.update(weight_decay=weight_decay_value, head="opt")
-                self.log_writer.set_step()
+            # if self.log_writer is not None:
+            #     self.log_writer.update(loss=loss_value, head="loss")
+            #     self.log_writer.update(lr=max_lr, head="opt")
+            #     self.log_writer.update(min_lr=min_lr, head="opt")
+            #     self.log_writer.update(weight_decay=weight_decay_value, head="opt")
+            #     self.log_writer.set_step()
+
+            iter_time.update(time.time() - end)
+            if i % print_freq == 0 or i == loader_size - 1:
+                eta_seconds = iter_time.global_avg * (loader_size - i)
+                eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
+                print(log_msg.format(
+                    i, loader_size, eta=eta_string,
+                    meters=str(metric_logger),
+                    time=str(iter_time), data=str(data_time)))
+
+                sys.stdout.flush()
+            i += 1
+            end = time.time()
+
+        total_time = time.time() - start_time
+        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        print('{} Total time: {} ({:.4f} s / it)'.format(
+            header, total_time_str, total_time / loader_size))
+
 
         # gather the stats from all processes
         # metric_logger.synchronize_between_processes()
@@ -122,7 +155,7 @@ class Trainer(object):
             criterion = torch.nn.SmoothL1Loss()
 
         metric_logger = utils.MetricLogger(delimiter="  ")
-        metric_logger.add_meter('err', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
+        # metric_logger.add_meter('err', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
         header = 'Test:'
         ref_num = self.anchor_images.shape[0]
 
@@ -176,7 +209,7 @@ class Trainer(object):
         print("Number of training examples = %d" % len(self.dataset_train))
         print("Number of training steps per epoch = %d" % num_training_steps_per_epoch)
 
-        optimizer = create_optimizer(args, self.model, skip_list=None)
+        optimizer = create_optimizer(args, self.model, skip_list=None, filter_bias_and_bn=True)
         lr_schedule_values = utils.cosine_scheduler(
             args.lr, args.min_lr, args.epochs, num_training_steps_per_epoch,
             warmup_epochs=args.warmup_epochs, warmup_steps=args.warmup_steps,

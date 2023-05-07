@@ -14,34 +14,58 @@
 #
 
 nvidia-smi
-python3 main.py --model BiT-M-R101x3 --experiment country \
-    --finetune BiT-M-R101x3-run2-caltech101.npz --imagenet_default_mean_and_std False \
-    --log_dir ./logs/BitR101x3_cls --output_dir ./logs/BitR101x3_cls \
-    --input_size 224 --drop_path 0.0 --batch_size 16 \
-    --data_path ./data --lr 3e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
 
-# python3 main.py --model convnext_base --experiment ivnf \
-#     --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
-#     --log_dir ./logs/ConvNextB_ivnf_mse --output_dir ./logs/ConvNextB_ivnf_mse \
+### final bit script
+# python3 main.py --model BiT-M-R101x1 --experiment country \
+#     --finetune BiT-M-R101x1-run2-caltech101.npz --imagenet_default_mean_and_std False \
+#     --log_dir ./logs/BitR101x1_cls --output_dir ./logs/BitR101x1_cls \
+#     --input_size 224 --drop_path 0.0 --batch_size 32 \
+#     --data_path ./data --lr 3e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
+
+
+### final convnext_base
+# python3 main.py --model convnext_base --experiment country \
+#     --finetune ./convnext_base_22k_224.pth \
+#     --log_dir ./logs/ConvNextB_cls_final --output_dir ./logs/ConvNextB_cls_final \
 #     --input_size 224 --drop_path 0.0 --batch_size 16 \
 #     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
-# python3 main.py --model convnext_base --experiment latlng \
-#     --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
-#     --log_dir ./logs/ConvNextB_latlng --output_dir ./logs/ConvNextB_latlng \
-#     --input_size 224 --drop_path 0.0 --batch_size 16 \
-#     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
-
-
+### final convnext dis prediction
 # for i in {1..10}
 #     do
-#         python3 main.py --model convnext_base --experiment dis_freeze \
-#             --finetune ./convnext_base_22k_224.pth --device cuda \
-#             --log_dir ./logs/ConvNextB_dis_sigmoid --output_dir ./logs/ConvNextB_dis_sigmoid \
-#             --input_size 224 --drop_path 0.0 --batch_size 32 --warmup_steps 10 \
-#             --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume True
+#     python3 main.py --model convnext_base --experiment dis_freeze \
+#         --finetune ./convnext_base_22k_224.pth --device cuda --weight_decay 0.05 \
+#         --log_dir ./logs/ConvNextB_dis_sigmoid_final --output_dir ./logs/ConvNextB_dis_sigmoid_final \
+#         --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 500 \
+#         --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume True
 #     done
+
+python3 main.py --model convnext_base --experiment dis_freeze \
+    --finetune ./convnext_base_22k_224.pth --device cuda \
+    --log_dir ./logs/ConvNextB_dis_debug --output_dir ./logs/ConvNextB_dis_debug \
+    --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 500 \
+    --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume True
+
+# python3 main.py --model convnext_base --experiment dis_freeze \
+#     --finetune ./convnext_base_22k_224.pth --device cuda --weight_decay 0.05 \
+#     --log_dir ./logs/ConvNextB_dis_sigmoid_final --output_dir ./logs/ConvNextB_dis_sigmoid_final \
+#     --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 500 \
+#     --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume False
+
+# python3 main.py --model convnext_base --experiment dis \
+#     --finetune ./convnext_base_22k_224.pth --device cpu \
+#     --log_dir ./logs/ConvNextB_dis_debug --output_dir ./logs/ConvNextB_dis_debug \
+#     --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 500 \
+#     --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume False
+
+### ablation
+# python3 main.py --model convnext_base --experiment euclidean \
+#     --finetune ./convnext_base_22k_224.pth \
+#     --log_dir ./logs/ConvNextB_euclidean_final --output_dir ./logs/ConvNextB_euclidean_final \
+#     --input_size 224 --drop_path 0.0 --batch_size 16 \
+#     --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0
+
 
 # python3 main.py --model convnext_base --experiment dis_freeze \
 #     --finetune ./convnext_base_22k_224.pth --device cuda \
@@ -49,9 +73,10 @@ python3 main.py --model BiT-M-R101x3 --experiment country \
 #     --input_size 224 --drop_path 0.0 --batch_size 32 --warmup_steps 10 \
 #     --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
-# python3 main.py --model convnext_base --experiment euclidean \
-#     --finetune ./convnext_base_22k_224.pth \
-#     --log_dir ./logs/ConvNextB_euclidean --output_dir ./logs/ConvNextB_euclidean \
-#     --input_size 224 --drop_path 0.0 --batch_size 16 \
-#     --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0
 
+
+# python3 main.py --model convnext_base --experiment latlng \
+#     --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
+#     --log_dir ./logs/ConvNextB_latlng --output_dir ./logs/ConvNextB_latlng \
+#     --input_size 224 --drop_path 0.0 --batch_size 16 \
+#     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
