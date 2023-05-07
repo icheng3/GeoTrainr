@@ -41,17 +41,17 @@ nvidia-smi
 #         --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume True
 #     done
 
-python3 main.py --model convnext_base --experiment dis_freeze \
-    --finetune ./convnext_base_22k_224.pth --device cuda \
-    --log_dir ./logs/ConvNextB_dis_debug --output_dir ./logs/ConvNextB_dis_debug \
-    --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 500 \
-    --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume True
-
 # python3 main.py --model convnext_base --experiment dis_freeze \
-#     --finetune ./convnext_base_22k_224.pth --device cuda --weight_decay 0.05 \
-#     --log_dir ./logs/ConvNextB_dis_sigmoid_final --output_dir ./logs/ConvNextB_dis_sigmoid_final \
+#     --finetune ./convnext_base_22k_224.pth --device cuda \
+#     --log_dir ./logs/ConvNextB_dis_debug --output_dir ./logs/ConvNextB_dis_debug \
 #     --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 500 \
-#     --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume False
+#     --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume True
+
+python3 main.py --model convnext_base --experiment dis \
+    --finetune ./logs/ConvNextB_cls_final/checkpoint-best.pth --device cuda \
+    --log_dir ./logs/ConvNextB_dis_bal --output_dir ./logs/ConvNextB_dis_bal \
+    --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 5000 \
+    --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0 --auto_resume False
 
 # python3 main.py --model convnext_base --experiment dis \
 #     --finetune ./convnext_base_22k_224.pth --device cpu \

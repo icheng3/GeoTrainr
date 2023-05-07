@@ -18,5 +18,4 @@ class GeoDiscriminator(nn.Module):
         )
 
     def forward(self, x):
-        y = self.head(x)
-        return y
+        return self.head(x)

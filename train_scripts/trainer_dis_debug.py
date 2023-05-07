@@ -13,7 +13,7 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from libs.ConvNeXt import build_dataset, create_optimizer
 import libs.ConvNeXt.utils as utils
 from libs.ConvNeXt.models.convnext import ConvNeXtFeature, ConvNeXt
-from geo_data import build_geo_dataset, anchor_samples, create_anchor_transform
+from geo_data import build_geo_dataset, anchor_samples, create_anchor_transform, COORD_REF
 from models.Distancer import GeoDiscriminator
 
 class Trainer(object):
@@ -47,7 +47,33 @@ class Trainer(object):
 
         optimizer.zero_grad()
 
-        for samples, coords, _ in data_loader:
+        start_time = time.time()
+        end = time.time()
+        loader_size = len(data_loader)
+        iter_time = utils.SmoothedValue(fmt='{avg:.4f}')
+        data_time = utils.SmoothedValue(fmt='{avg:.4f}')
+        space_fmt = f':{len(str(loader_size))}d'
+        log_msg = [
+            header,
+            '[{0' + space_fmt + '}/{1}]',
+            'eta: {eta}',
+            '{meters}',
+            'time: {time}',
+            'data: {data}'
+        ]
+        log_msg = "\t".join(log_msg)
+        
+        with torch.no_grad():
+            features_ref = self.backbone(self.anchor_images).detach()
+
+        i = 0
+        for data_iter_step, (samples, coords, _) in enumerate(data_loader):            
+            step = data_iter_step // update_freq
+            it = start_steps + step  # global training iteration
+            data_time.update(time.time() - end)
+            if lr_schedule_values is not None:
+                for param_group in optimizer.param_groups:
+                    param_group["lr"] = lr_schedule_values[it] * param_group["lr_scale"]
             bs = samples.shape[0]
             # assert bs%2==0, "batch size must be even number for eus_dis learning"
             samples = samples.to(self.device)
@@ -56,15 +82,29 @@ class Trainer(object):
             # compute output
             with torch.no_grad():
                 features = self.backbone(samples).detach()
-                input_feature = torch.cat([features[:bs//2], features[bs//2:]], dim=-1)
 
-            feature_distance = self.model(input_feature)
+                compare_ids = torch.zeros(bs)
+                for c, coord in enumerate(coords):
+                    all_dis = torch.pairwise_distance(self.anchor_coords, coord, p=2, keepdim=False).clip(0, 10)
+
+                    inds = torch.arange(self.anchor_coords.shape[0])
+                    valid_samples = inds[all_dis<8]
+                    if valid_samples.shape[0]>0:
+                        choice_bit = valid_samples[torch.randperm(valid_samples.size(0))[0]]
+                    else:
+                        choice_bit = torch.randperm(inds.size(0))[0]
+                    if (i+1)%5==0:
+                        choice_bit = all_dis.argmax()
+                    compare_ids[c] = choice_bit
+                compare_feature = features_ref[compare_ids.long()]
+                compare_coords = self.anchor_coords[compare_ids.long()]
+                
+            feature_distance = self.model(torch.cat([compare_feature, features], dim=-1))
             feature_distance = torch.sigmoid(feature_distance)*10
-            geo_distance = torch.pairwise_distance(coords[:bs//2], coords[bs//2:], p=2, keepdim=True).clip(0, 10)
-
+            geo_distance = torch.pairwise_distance(compare_coords, coords, p=2, keepdim=True).clip(0, 10)
             loss = criterion(feature_distance, geo_distance)
             with torch.no_grad():
-                err = (geo_distance - feature_distance).abs().mean()
+                err = (geo_distance - feature_distance.detach()).cpu().abs().mean()
 
             loss_value = loss.item()
 
@@ -91,6 +131,32 @@ class Trainer(object):
                     weight_decay_value = group["weight_decay"]
             metric_logger.update(weight_decay=weight_decay_value)
 
+            # if self.log_writer is not None:
+            #     self.log_writer.update(loss=loss_value, head="loss")
+            #     self.log_writer.update(lr=max_lr, head="opt")
+            #     self.log_writer.update(min_lr=min_lr, head="opt")
+            #     self.log_writer.update(weight_decay=weight_decay_value, head="opt")
+            #     self.log_writer.set_step()
+
+            iter_time.update(time.time() - end)
+            if i % print_freq == 0 or i == loader_size - 1:
+                eta_seconds = iter_time.global_avg * (loader_size - i)
+                eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
+                print(log_msg.format(
+                    i, loader_size, eta=eta_string,
+                    meters=str(metric_logger),
+                    time=str(iter_time), data=str(data_time)))
+
+                sys.stdout.flush()
+            i += 1
+            end = time.time()
+
+        total_time = time.time() - start_time
+        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        print('{} Total time: {} ({:.4f} s / it)'.format(
+            header, total_time_str, total_time / loader_size))
+
+
         # gather the stats from all processes
         # metric_logger.synchronize_between_processes()
         print("Averaged stats:", metric_logger)
@@ -113,6 +179,7 @@ class Trainer(object):
 
         # switch to evaluation mode
         self.model.eval()
+        features_ref = self.backbone(self.anchor_images)
         for batch in metric_logger.log_every(data_loader, 10, header):
             images = batch[0]
             coords = batch[1]
@@ -121,20 +188,23 @@ class Trainer(object):
 
             images = images.to(self.device)
             coords = coords.to(self.device)
-            coords_ref = self.anchor_coords
 
             # compute output
-            features_ref = self.backbone(self.anchor_images)
             features = self.backbone(images)
+            
+            compare_ids = torch.zeros(bs)
+            for c, coord in enumerate(coords):
+                all_dis = torch.pairwise_distance(self.anchor_coords, coord, p=2, keepdim=False).clip(0, 10)
+                compare_ids[c] = all_dis.argmin()
+            compare_feature = features_ref[compare_ids.long()]
+            compare_coords = self.anchor_coords[compare_ids.long()]
 
-            loss, err = 0, 0
-            for i in range(ref_num):
-                feature_distance = self.model(torch.cat([features, features_ref[i:i+1].repeat(bs, 1)], dim=-1))
-                feature_distance = torch.sigmoid(feature_distance)*10
-                geo_distance = torch.pairwise_distance(coords, coords_ref[i:i+1].repeat(bs, 1), p=2, keepdim=True).clip(0, 10)
+            feature_distance = self.model(torch.cat([compare_feature, features], dim=-1))
+            feature_distance = torch.sigmoid(feature_distance)*10
+            geo_distance = torch.pairwise_distance(compare_coords, coords, p=2, keepdim=True).clip(0, 10)
 
-                loss += criterion(feature_distance, geo_distance).item()/ref_num
-                err  += (geo_distance - feature_distance).abs().mean().item()/ref_num
+            loss = criterion(feature_distance, geo_distance).item()/ref_num
+            err  = (geo_distance - feature_distance).abs().max().item()/ref_num
 
             metric_logger.update(loss=loss)
             metric_logger.meters['err'].update(err, n=bs)
@@ -161,7 +231,7 @@ class Trainer(object):
         print("Number of training examples = %d" % len(self.dataset_train))
         print("Number of training steps per epoch = %d" % num_training_steps_per_epoch)
 
-        optimizer = create_optimizer(args, self.model, skip_list=None)
+        optimizer = create_optimizer(args, self.model, skip_list=None, filter_bias_and_bn=True)
         lr_schedule_values = utils.cosine_scheduler(
             args.lr, args.min_lr, args.epochs, num_training_steps_per_epoch,
             warmup_epochs=args.warmup_epochs, warmup_steps=args.warmup_steps,
@@ -248,19 +318,14 @@ class Trainer(object):
 
             for k in ['head.weight', 'head.bias']:
                 if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                    # print(f"Removing key {k} from pretrained checkpoint")
                     del checkpoint_model[k]
-            # utils.load_state_dict(self.model, checkpoint_model, prefix=args.model_prefix)
             missing_keys, _ = self.backbone.load_state_dict(checkpoint_model, strict=False)
             print("missed_keys:", missing_keys)
 
+        self.backbone.to(self.device)
         for param in self.backbone.parameters():
             param.requires_grad = False
 
-        self.backbone.to(self.device)
-        for param in self.backbone.parameters():
-            print("grad setting: ", param.requires_grad)
-            break
         self.backbone.eval()
         self.model = GeoDiscriminator(1024)
         self.model.to(self.device)
@@ -306,7 +371,7 @@ class Trainer(object):
         for name in anchor_samples:
             _, coord = name[:-4].split("_")
             lat, lng = coord.split(",")
-            latlng = np.array([float(lat), float(lng)])
+            latlng = np.array([float(lat), float(lng)]) - COORD_REF
             img_path = os.path.join(args.data_path, name)
             img = Image.open(img_path)
             self.anchor_images.append(anchor_transform(img))
