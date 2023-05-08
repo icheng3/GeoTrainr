@@ -83,28 +83,19 @@ class Trainer(object):
             with torch.no_grad():
                 features = self.backbone(samples).detach()
 
-                compare_ids = torch.zeros(bs)
-                for c, coord in enumerate(coords):
-                    all_dis = torch.pairwise_distance(self.anchor_coords, coord, p=2, keepdim=False).clip(0, 10)
+            feature_distance = self.model(torch.cat([features[:bs//2], features[bs//2:]], dim=-1))
+            feature_distance = torch.sigmoid(feature_distance)*50
+            geo_distance = torch.pairwise_distance(coords[:bs//2], coords[bs//2:], p=2, keepdim=True).clip(0, 25)
 
-                    inds = torch.arange(self.anchor_coords.shape[0])
-                    valid_samples = inds[all_dis<8]
-                    if valid_samples.shape[0]>0:
-                        choice_bit = valid_samples[torch.randperm(valid_samples.size(0))[0]]
-                    else:
-                        choice_bit = torch.randperm(inds.size(0))[0]
-                    if (i+1)%5==0:
-                        choice_bit = all_dis.argmax()
-                    compare_ids[c] = choice_bit
-                compare_feature = features_ref[compare_ids.long()]
-                compare_coords = self.anchor_coords[compare_ids.long()]
-                
-            feature_distance = self.model(torch.cat([compare_feature, features], dim=-1))
-            feature_distance = torch.sigmoid(feature_distance)*10
-            geo_distance = torch.pairwise_distance(compare_coords, coords, p=2, keepdim=True).clip(0, 10)
+            identity_distance = self.model(torch.cat([features, features], dim=-1))
+            identity_distance = torch.sigmoid(identity_distance)*50
+            
             loss = criterion(feature_distance, geo_distance)
+            loss += identity_distance.mean()
+
             with torch.no_grad():
                 err = (geo_distance - feature_distance.detach()).cpu().abs().mean()
+                err_iden = identity_distance.detach().cpu().abs().mean()
 
             loss_value = loss.item()
 
@@ -117,6 +108,7 @@ class Trainer(object):
 
             metric_logger.update(loss=loss_value)
             metric_logger.meters['err'].update(err.item(), n=bs)
+            metric_logger.meters['I_err'].update(err_iden.item(), n=bs)
             min_lr = 10.
             max_lr = 0.
             for group in optimizer.param_groups:
@@ -184,7 +176,6 @@ class Trainer(object):
             images = batch[0]
             coords = batch[1]
             bs = images.shape[0]
-            assert bs%2==0, "batch size must be even number for eus_dis learning"
 
             images = images.to(self.device)
             coords = coords.to(self.device)
@@ -194,14 +185,14 @@ class Trainer(object):
             
             compare_ids = torch.zeros(bs)
             for c, coord in enumerate(coords):
-                all_dis = torch.pairwise_distance(self.anchor_coords, coord, p=2, keepdim=False).clip(0, 10)
+                all_dis = torch.pairwise_distance(self.anchor_coords, coord, p=2, keepdim=False).clip(0, 25)
                 compare_ids[c] = all_dis.argmin()
             compare_feature = features_ref[compare_ids.long()]
             compare_coords = self.anchor_coords[compare_ids.long()]
 
             feature_distance = self.model(torch.cat([compare_feature, features], dim=-1))
-            feature_distance = torch.sigmoid(feature_distance)*10
-            geo_distance = torch.pairwise_distance(compare_coords, coords, p=2, keepdim=True).clip(0, 10)
+            feature_distance = torch.sigmoid(feature_distance)*50
+            geo_distance = torch.pairwise_distance(compare_coords, coords, p=2, keepdim=True).clip(0, 25)
 
             loss = criterion(feature_distance, geo_distance).item()/ref_num
             err  = (geo_distance - feature_distance).abs().max().item()/ref_num
@@ -322,12 +313,22 @@ class Trainer(object):
             missing_keys, _ = self.backbone.load_state_dict(checkpoint_model, strict=False)
             print("missed_keys:", missing_keys)
 
+        
+
         self.backbone.to(self.device)
         for param in self.backbone.parameters():
             param.requires_grad = False
 
         self.backbone.eval()
         self.model = GeoDiscriminator(1024)
+        if len(args.resume)>0: ### for eval
+            print(f"resuming checkpoint at {args.resume}")
+            checkpoint_model = torch.load(args.resume, map_location='cpu')['model']
+            state_dict = self.model.state_dict()
+            for k in ['head.weight', 'head.bias']:
+                if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+                    del checkpoint_model[k]
+            missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=False)
         self.model.to(self.device)
         self.args = args
 

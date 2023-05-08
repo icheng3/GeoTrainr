@@ -15,30 +15,32 @@ if __name__ == '__main__':
     if args.experiment == "country":
         from train_scripts.trainer_cls import Trainer
         trainer = Trainer(args)
-        trainer.train()
 
     if args.experiment == "dis":
         from train_scripts.trainer_dis_debug import Trainer
         trainer = Trainer(args)
-        trainer.train()
     
     if args.experiment == "dis_freeze":
         from train_scripts.trainer_dis_freeze import Trainer
         trainer = Trainer(args)
-        trainer.train()
         
     if args.experiment == "ivnf":
         from train_scripts.trainer_ivnf import Trainer
         trainer = Trainer(args)
-        trainer.train()
 
     if args.experiment == "euclidean":
         from train_scripts.trainer_dis_euc import Trainer
         trainer = Trainer(args)
-        trainer.train()
         
     if args.experiment == "latlng":
         from train_scripts.trainer_latlng import Trainer
         trainer = Trainer(args)
+    
+
+    if args.eval:
+        trainer.evaluate(trainer.data_loader_val)
+    else:
         trainer.train()
         
+# ! wget https://dl.fbaipublicfiles.com/convnext/convnext_base_22k_224.pth
+# ! wget https://github.com/icheng3/GeoTrainr/releases/download/weights/checkpoint-best.pth

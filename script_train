@@ -4,17 +4,29 @@
 #$ -cwd
 #
 #  This is a long-running job
-#$ -l inf
+#$ -l day
 #
 #  Can use up to 6GB of memory
 #$ -l vf=16G
 #
 #$ -l gpus=1
+#$ -l gmem=32
 #
 #
 
 nvidia-smi
 
+python3 main.py --model convnext_base --experiment latlng \
+    --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
+    --log_dir ./logs/latlng_raw --output_dir ./logs/latlng_raw \
+    --input_size 224 --drop_path 0.0 --batch_size 64 \
+    --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume True
+
+# python3 main.py --model convnext_base --experiment latlng \
+#     --finetune ./logs/ConvNextB_cls_final/checkpoint-best.pth --dis_criterion mse \
+#     --log_dir ./logs/latlng_pretrain --output_dir ./logs/latlng_pretrain \
+#     --input_size 224 --drop_path 0.0 --batch_size 64 \
+#     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
 ### final bit script
 # python3 main.py --model BiT-M-R101x1 --experiment country \
@@ -28,7 +40,7 @@ nvidia-smi
 # python3 main.py --model convnext_base --experiment country \
 #     --finetune ./convnext_base_22k_224.pth \
 #     --log_dir ./logs/ConvNextB_cls_final --output_dir ./logs/ConvNextB_cls_final \
-#     --input_size 224 --drop_path 0.0 --batch_size 16 \
+#     --input_size 224 --drop_path 0.1 --batch_size 16 \
 #     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
 ### final convnext dis prediction
@@ -47,11 +59,12 @@ nvidia-smi
 #     --input_size 224 --drop_path 0.0 --batch_size 64 --warmup_steps 500 \
 #     --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume True
 
-python3 main.py --model convnext_base --experiment dis \
-    --finetune ./logs/ConvNextB_cls_final/checkpoint-best.pth --device cuda \
-    --log_dir ./logs/ConvNextB_dis_bal --output_dir ./logs/ConvNextB_dis_bal \
-    --input_size 224 --drop_path 0.0 --batch_size 128 --warmup_epochs 5 \
-    --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0 --auto_resume False
+# python3 main.py --model convnext_base --experiment dis --dis_criterion smoothl1  \
+#     --finetune ./logs/ConvNextB_cls_final/checkpoint-best.pth --device cuda \
+#     --log_dir ./logs/ConvNextB_dis_contrast --output_dir ./logs/ConvNextB_dis_contrast \
+#     --input_size 224 --drop_path 0.0 --batch_size 128 --warmup_epochs 5 \
+#     --data_path ./data --lr 1e-3 --min_lr 1e-5 --num_workers 0 --auto_resume True \
+#     --resume ./logs/ConvNextB_dis_contrast/checkpoint-4.pth --eval True
 
 # python3 main.py --model convnext_base --experiment dis \
 #     --finetune ./convnext_base_22k_224.pth --device cpu \
@@ -74,9 +87,3 @@ python3 main.py --model convnext_base --experiment dis \
 #     --data_path ./data --lr 1e-4 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
 
-
-# python3 main.py --model convnext_base --experiment latlng \
-#     --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
-#     --log_dir ./logs/ConvNextB_latlng --output_dir ./logs/ConvNextB_latlng \
-#     --input_size 224 --drop_path 0.0 --batch_size 16 \
-#     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
