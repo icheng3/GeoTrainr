@@ -16,11 +16,11 @@
 
 nvidia-smi
 
-python3 main.py --model convnext_base --experiment latlng \
-    --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
-    --log_dir ./logs/latlng_raw --output_dir ./logs/latlng_raw \
-    --input_size 224 --drop_path 0.0 --batch_size 64 \
-    --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume True
+# python3 main.py --model convnext_base --experiment latlng \
+#     --finetune ./convnext_base_22k_224.pth --dis_criterion mse \
+#     --log_dir ./logs/latlng_raw --output_dir ./logs/latlng_raw \
+#     --input_size 224 --drop_path 0.0 --batch_size 64 \
+#     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume True
 
 # python3 main.py --model convnext_base --experiment latlng \
 #     --finetune ./logs/ConvNextB_cls_final/checkpoint-best.pth --dis_criterion mse \
@@ -29,12 +29,14 @@ python3 main.py --model convnext_base --experiment latlng \
 #     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
 
 ### final bit script
-# python3 main.py --model BiT-M-R101x1 --experiment country \
-#     --finetune BiT-M-R101x1-run2-caltech101.npz --imagenet_default_mean_and_std False \
-#     --log_dir ./logs/BitR101x1_cls --output_dir ./logs/BitR101x1_cls \
-#     --input_size 224 --drop_path 0.0 --batch_size 32 \
-#     --data_path ./data --lr 3e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
+python3 main.py --model BiT-M-R101x1 --experiment country \
+    --finetune BiT-M-R101x1-run2-caltech101.npz --imagenet_default_mean_and_std False \
+    --log_dir ./logs/BitR101x1_cls --output_dir ./logs/BitR101x1_cls \
+    --input_size 224 --drop_path 0.0 --batch_size 32 \
+    --data_path ./data --lr 3e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False \
+    --resume ./logs/BitR101x1_cls/checkpoint-best.pth --eval True
 
+python main.py --model BiT-M-R101x1 --experiment country --imagenet_default_mean_and_std False --input_size 224 --drop_path 0.0 --batch_size 32 --data_path ./data --lr 3e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False --resume ./logs/BitR101x1_cls/checkpoint-23.pth --eval True
 
 ### final convnext_base
 # python3 main.py --model convnext_base --experiment country \
@@ -42,6 +44,8 @@ python3 main.py --model convnext_base --experiment latlng \
 #     --log_dir ./logs/ConvNextB_cls_final --output_dir ./logs/ConvNextB_cls_final \
 #     --input_size 224 --drop_path 0.1 --batch_size 16 \
 #     --data_path ./data --lr 5e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False
+
+python main.py --model convnext_base --finetune ./convnext_base_22k_224.pth --experiment country --input_size 224 --drop_path 0.0 --batch_size 32 --data_path ./data --lr 3e-5 --min_lr 1e-6 --num_workers 0 --auto_resume False --resume ./logs/cls_final/checkpoint-20.pth --eval True
 
 ### final convnext dis prediction
 # for i in {1..10}

@@ -143,7 +143,7 @@ def get_args_parser():
                         help='How to apply mixup/cutmix params. Per "batch", "pair", or "elem"')
 
     # * Finetuning params
-    parser.add_argument('--finetune', default='./BiT-M-R101x3-run2-caltech101.npz',
+    parser.add_argument('--finetune', default='',
                         help='finetune from checkpoint')
     parser.add_argument('--head_init_scale', default=1.0, type=float,
                         help='classifier head initial scale, typically adjusted in fine-tuning')

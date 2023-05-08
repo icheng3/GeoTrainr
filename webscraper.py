@@ -18,8 +18,8 @@ API_ENDPOINT = 'https://maps.googleapis.com/maps/api/streetview'
 # API_KEY = "AIzaSyA5EZpmjzBShpGHQZ998vrnnUMi8BSnOF8" # manny's
 API_KEY = "AIzaSyCx1LJ5ow1Cvakq9Xcbuz3aI-9bpYqgvPE"
 # number of images to be obtained
-NUM_IMAGES = 50000
-NUM_QUERY = 30000
+NUM_IMAGES = 2
+NUM_QUERY = 500
 
 # load data
 loc_data = pd.read_csv('country_data.csv')
@@ -57,7 +57,7 @@ for i in random_locs:
         seen += 1
         continue
 
-    metadata_request = f'{API_ENDPOINT}/metadata?size={IMG_SIZE}x{IMG_SIZE}&location={loc}&fov=80&heading=70&pitch=0&key={API_KEY}'
+    metadata_request = f'{API_ENDPOINT}/metadata?size={512}x{512}&location={loc}&fov=80&heading=70&pitch=0&key={API_KEY}'
     driver.get(metadata_request)
     
     try:
@@ -67,7 +67,7 @@ for i in random_locs:
         driver.get(api_request)
         try:
             image_url = driver.find_element(By.TAG_NAME, 'img').get_attribute('src')
-            urllib.request.urlretrieve(image_url, f'data/{country_code}_{loc}.png')
+            urllib.request.urlretrieve(image_url, f'eval/{country_code}_{loc}.png')
             hits += 1
         except:
             pass

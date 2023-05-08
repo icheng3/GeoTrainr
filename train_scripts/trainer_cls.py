@@ -264,8 +264,15 @@ class Trainer(object):
         if args.model == "BiT-M-R101x1":
             # wget https://storage.googleapis.com/bit_models/vtab/BiT-M-R101x1-run2-caltech101.npz
             self.model = bit_models.KNOWN_MODELS[args.model](head_size=args.nb_classes, zero_head=True)
-            self.model.load_from(np.load(args.finetune))
+            if len(args.finetune)>0:
+                self.model.load_from(np.load(args.finetune))
             
+        if len(args.resume)>0: ### for eval
+            print(f"resuming checkpoint at {args.resume}")
+            checkpoint_model = torch.load(args.resume, map_location='cpu')['model']
+            missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=True)
+            print(missing_keys)
+
         self.model.to(self.device)
         self.args = args
 

@@ -325,9 +325,6 @@ class Trainer(object):
             print(f"resuming checkpoint at {args.resume}")
             checkpoint_model = torch.load(args.resume, map_location='cpu')['model']
             state_dict = self.model.state_dict()
-            for k in ['head.weight', 'head.bias']:
-                if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                    del checkpoint_model[k]
             missing_keys, _ = self.model.load_state_dict(checkpoint_model, strict=False)
         self.model.to(self.device)
         self.args = args

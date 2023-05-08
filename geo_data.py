@@ -14,8 +14,8 @@ from timm.data.constants import \
 COORD_REF = np.array((50, 10))
 
 class GeoDataset(data.Dataset):
-    def __init__(self, paths, transform, trim=False):
-        self.cls = []
+    def __init__(self, paths, transform, trim=False, classes=[]):
+        self.cls = classes
         self.dataset = []
         for image in paths:
             name = os.path.basename(image)[:-4]
@@ -26,8 +26,6 @@ class GeoDataset(data.Dataset):
             if trim and latlng[1]>50:
                 continue
             self.dataset.append( (country, latlng-COORD_REF, image) )
-            if country not in self.cls:
-                self.cls.append(country)
 
         self.cls_map = {c: i for i, c in enumerate(self.cls)}
         print(len(self.dataset))
@@ -71,12 +69,24 @@ def build_geo_dataset(args, trim=False):
 
     root = args.data_path
     images = glob.glob(root+'/*.png')
+    countries = []
+    for image in images:
+        name = os.path.basename(image)[:-4]
+        country, _ = name.split("_")
+        if country not in countries:
+            countries.append(country)
+    countries.sort()
+
     total = len(images)
     split = int(0.8*total)
+    random.seed(10)
     random.shuffle(images)
 
-    trainset = GeoDataset(images[:split], train_transform, trim)
-    testset = GeoDataset(images[split:], test_transform, trim)
+    trainset = GeoDataset(images[:split], train_transform, trim, countries)
+    testset = GeoDataset(images[split:], test_transform, trim, countries)
+    # testset.cls_map = trainset.cls_map
+    print(trainset.cls_map)
+    print(testset.cls_map)
     nb_classes = len(trainset.cls)
     return trainset, testset, nb_classes
     
