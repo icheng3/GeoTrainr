@@ -178,6 +178,9 @@ class Trainer(object):
         else:
             criterion = torch.nn.CrossEntropyLoss()
 
+        utils.auto_load_model(
+            args=args, model=self.model, model_without_ddp=self.model,
+            optimizer=optimizer, loss_scaler=None, model_ema=None)
         max_accuracy = 0.0
 
         print("Start training for %d epochs" % args.epochs)
